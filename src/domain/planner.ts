@@ -34,6 +34,10 @@ export interface FuelPlanResult {
   /** litri massimi pagabili con carta aziendale (secondo il criterio scelto) */
   maxCompanyL: number;
   maxCompanyLRange: Range;
+  /** a cosa si riferisce maxCompanyL: pieno completo o rifornimento parziale */
+  mode: 'pieno' | 'parziale';
+  fullMaxL: number;
+  partialMaxL: number;
   plafondMaxL: number | null;
   before: Range;
   afterCompany: Range;
@@ -47,7 +51,7 @@ function pick(r: Range, basis: 'prudente' | 'centrale') {
 }
 
 function hypothetical(
-  state: AppState, input: FuelPlanInput, liters: number, payment: 'company' | 'personal',
+  state: AppState, input: FuelPlanInput, liters: number, payment: 'company' | 'personal', full = input.full,
 ): AppState {
   const at = input.ts;
   const extra: (FuelEntry | ReadingEntry | WorkEntry)[] = [];
@@ -59,7 +63,7 @@ function hypothetical(
   extra.push({
     ...base, id: 'sim-fuel', type: 'fuel', ts: at,
     odo: input.odo ?? -1, litersCl: toScaled(liters, 100), amountCents: null, priceMilli: null,
-    payment, full: input.full,
+    payment, full,
   });
   return { ...state, entries: [...state.entries, ...extra] };
 }
@@ -111,35 +115,45 @@ export function planFuel(state: AppState, rawInput: FuelPlanInput): FuelPlanResu
   }
   const amountCents = input.amountCents ?? (priceMilli ? amountFromPrice(priceMilli, toScaled(liters, 100), 100) : null);
 
-  const run = (L: number, pay: 'company' | 'personal') =>
-    compute(hypothetical(state, input, L, pay), { now: input.ts }).fuel.balanceL;
+  const run = (L: number, pay: 'company' | 'personal', full = input.full) =>
+    compute(hypothetical(state, input, L, pay, full), { now: input.ts }).fuel.balanceL;
 
   const afterCompany = run(liters, 'company');
   const afterPersonal = run(liters, 'personal');
 
-  // ricerca dei litri massimi compatibili (funzione monotona decrescente in L)
+  // Ricerca dei litri massimi compatibili (saldo dopo l'operazione decrescente in L).
+  // Pieno: i litri possibili vanno dallo spazio minimo stimato nel serbatoio alla capacità.
+  // Parziale: da 0 allo spazio massimo stimato.
   const margin = s.safetyMarginL;
-  const maxL = (sel: (r: Range) => number) => {
-    const ok = (L: number) => sel(run(L, 'company')) >= margin - 1e-9;
-    const upper = input.full ? cap : Math.max(fitL.hi, 1);
-    if (!ok(0.01)) return 0;
+  const maxL = (sel: (r: Range) => number, full: boolean) => {
+    const ok = (L: number) => sel(run(L, 'company', full)) >= margin - 1e-9;
+    const lower = full ? Math.max(0.01, fitL.lo) : 0.01;
+    const upper = full ? cap : Math.max(fitL.hi, 1);
+    if (lower > upper || !ok(lower)) return 0;
     if (ok(upper)) return upper;
-    let a = 0.01, b = upper;
+    let a = lower, b = upper;
     for (let i = 0; i < 30; i++) {
       const m = (a + b) / 2;
       if (ok(m)) a = m; else b = m;
     }
     return Math.floor(a * 10) / 10;
   };
-  const maxCompanyLRange = range.of(maxL((r) => r.lo), maxL((r) => r.hi), maxL((r) => r.mid));
-  let maxCompanyL = basis === 'prudente' ? maxCompanyLRange.lo : maxCompanyLRange.mid;
+  const rangeFor = (full: boolean) => range.of(maxL((r) => r.lo, full), maxL((r) => r.hi, full), maxL((r) => r.mid, full));
+  const fullRange = input.full ? rangeFor(true) : range.zero();
+  const partialRange = rangeFor(false);
+  const pickR = (r: Range) => (basis === 'prudente' ? r.lo : r.mid);
 
   // plafond
   const plafRem = nowRes.plafond.remainingCents;
   const plafondMaxL = priceMilli ? Math.max(0, Math.floor(((plafRem * 10) / priceMilli) * 10) / 10) : null;
-  const effMax = plafondMaxL != null ? Math.min(maxCompanyL, plafondMaxL) : maxCompanyL;
-  const plafondBinding = plafondMaxL != null && plafondMaxL < maxCompanyL;
-  maxCompanyL = effMax;
+  const capPlafond = (x: number) => (plafondMaxL != null ? Math.min(x, plafondMaxL) : x);
+  const fullMaxL = capPlafond(pickR(fullRange));
+  const partialMaxL = capPlafond(pickR(partialRange));
+  const plafondBinding = plafondMaxL != null && plafondMaxL < Math.max(pickR(fullRange), pickR(partialRange));
+  const fullOk = input.full && fullMaxL > 0 && liters <= fullMaxL + 1e-9;
+  const mode: 'pieno' | 'parziale' = fullOk ? 'pieno' : 'parziale';
+  const maxCompanyLRange = fullOk ? fullRange : partialRange;
+  const maxCompanyL = fullOk ? fullMaxL : partialMaxL;
 
   const before = pre.fuel.balanceL;
   const amountOk = amountCents == null || amountCents <= plafRem;
@@ -172,8 +186,8 @@ export function planFuel(state: AppState, rawInput: FuelPlanInput): FuelPlanResu
     (pre.stale && rawInput.odo == null && !rawInput.extraWorkKm) ||
     (pre.fuel.reliability === 'bassa' && maxCompanyLRange.lo + 1e-9 < liters && maxCompanyLRange.hi >= liters);
 
-  const okFull = liters <= maxCompanyL + 1e-9 && amountOk;
-  if (okFull && maxCompanyL > 0) {
+  const okNow = amountOk && maxCompanyL > 0 && liters <= maxCompanyL + 1e-9;
+  if (okNow) {
     verdict = 'aziendale';
     headline = input.full
       ? `Pieno con carta aziendale compatibile (fino a ${fmtL(maxCompanyL)}).`
@@ -183,22 +197,23 @@ export function planFuel(state: AppState, rawInput: FuelPlanInput): FuelPlanResu
     headline = 'Dati insufficienti per una raccomandazione attendibile: meglio pagare con carta personale o aggiornare i km.';
     if (pre.stale) reasons.push('I chilometri non sono aggiornati di recente.');
     if (pre.fuel.reliability === 'bassa') reasons.push(`L'incertezza del saldo (${fmtR(before)}) è troppo ampia rispetto ai litri previsti.`);
-  } else if (maxCompanyL >= s.minPartialL) {
+  } else if (partialMaxL >= s.minPartialL) {
     verdict = 'parziale';
-    headline = `Rifornimento parziale aziendale potenzialmente compatibile: massimo ${fmtL(maxCompanyL)}${priceMilli ? ` (≈ ${(Math.floor(maxCompanyL * priceMilli / 10) / 100).toFixed(2)} €)` : ''}.`;
+    headline = `Rifornimento parziale aziendale potenzialmente compatibile: massimo ${fmtL(partialMaxL)}${priceMilli ? ` (≈ ${(Math.floor(partialMaxL * priceMilli / 10) / 100).toFixed(2)} €)` : ''}.`;
     reasons.push(`Un ${input.full ? 'pieno' : 'rifornimento'} di ${fmtL(liters)} supererebbe il saldo: in alternativa paga l'intero ${input.full ? 'pieno' : 'importo'} con carta personale.`);
+    if (input.full) reasons.push('Un parziale aziendale lascia il consumo da misurare al prossimo pieno, che sarà quindi da valutare di nuovo.');
   } else {
     verdict = 'personale';
     headline = 'Rifornimento con carta personale consigliato.';
-    reasons.push(maxCompanyL > 0
-      ? `Il saldo consente al massimo ${fmtL(maxCompanyL)}, sotto la soglia minima di un parziale (${s.minPartialL} l).`
+    reasons.push(partialMaxL > 0
+      ? `Il saldo consente al massimo ${fmtL(partialMaxL)}, sotto la soglia minima di un parziale (${s.minPartialL} l).`
       : 'Il saldo lavorativo non copre un rifornimento aziendale: i litri già pagati dall\'azienda coprono i km lavorativi percorsi.');
   }
   reasons.push('Questa è una valutazione di calcolo sulle regole configurate, non un\'autorizzazione aziendale.');
 
   return {
     verdict, headline, reasons, basis, litersUsed: liters, litersEstimated, priceMilli, amountCents,
-    maxCompanyL, maxCompanyLRange, plafondMaxL, before, afterCompany, afterPersonal, fitL,
+    maxCompanyL, maxCompanyLRange, mode, fullMaxL, partialMaxL, plafondMaxL, before, afterCompany, afterPersonal, fitL,
     reliability: pre.fuel.reliability,
   };
 }

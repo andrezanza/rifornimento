@@ -159,7 +159,9 @@ npx vite preview --port 4173 & node e2e/run.mjs   # test end-to-end (serve Chrom
 
 ## 6. Inizializzazione con i dati reali
 
-Alla prima apertura l'app mostra i dati già noti, distinti in certi, stimati, sconosciuti e provvisori, e li importa con un tocco senza chiedere di reinserirli:
+Alla prima apertura l'app mostra i dati già noti, distinti in certi, stimati, sconosciuti e provvisori, e li importa con un tocco senza chiedere di reinserirli. Aggiornamento del 25/10/2026 con i dati forniti da Andrea.
+
+**Rifornimenti** (tutti pieni completi, confermati):
 
 | Data | Km | Litri | Importo | €/l (calcolato) | Pagamento |
 |---|---:|---:|---:|---:|---|
@@ -167,38 +169,44 @@ Alla prima apertura l'app mostra i dati già noti, distinti in certi, stimati, s
 | 11/10/2026 | 1.981 | 35,68 | 71,00 € | 1,990 | personale |
 | 23/10/2026 | 2.752 | 39,03 | 77,67 € | 1,990 | UTA e+ |
 
-Più: km lavorativi 1.650–1.660 dal 18/09 come **stima aggregata non ripartibile per mese**, una rilevazione a 2.910 km il 23/10 e le medie del computer di bordo solo come annotazione. "Pieno completo" è segnato come *non noto* per i tre rifornimenti storici.
+**Tragitti lavorativi:** 11 tragitti datati, 1.662 km in totale (10 casa-lavoro e ritorno, 1 trasferta da cliente), registrati con il tipo di tragitto.
+
+**Altri dati:**
+- consegna 18/09 con circa 1/4 di serbatoio, un po' meno, non in riserva (6–10 l, fornito con l'auto, quindi aziendale);
+- rilevazioni il 23/10 a 2.910 km e il 25/10 a 3.073 km, con indicatore a metà.
 
 **Report mensile ricostruito:**
-- settembre 2026: personale 64,00 € (32,34 l), aziendale 0;
-- ottobre 2026: personale 71,00 € (35,68 l), aziendale 77,67 € (39,03 l).
 
-Totale personale 135,00 €, aziendale 77,67 €.
+| Mese | Benzina personale | Benzina aziendale | Km lavorativi |
+|---|---|---|---|
+| settembre 2026 | 64,00 € (32,34 l) | 0,00 € | 507 km |
+| ottobre 2026 | 71,00 € (35,68 l) | 77,67 € (39,03 l) | 1.155 km |
 
-**Saldo storico (nessun valore inventato):** con carburante alla consegna sconosciuto (0–40 l, fornito con l'auto) il saldo benzina è **−4,3 l, nell'intervallo −16,5 … +6,1 l**. Dipende quasi solo dalla benzina presente alla consegna:
+**Tratti pieno-a-pieno:**
 
-| Benzina alla consegna | Saldo oggi (min / centrale / max) |
-|---|---|
-| non nota (0–40 l) | −16,5 / −4,3 / +6,1 l |
-| pieno | −16,5 / −12,4 / −10,0 l |
-| metà | −9,0 / −4,3 / −1,4 l |
-| un quarto | −4,6 / 0,0 / +2,9 l |
-| riserva | −2,0 / +2,9 / +6,1 l |
+| Tratto | Km | Benzina consumata | Quota lavoro | Litri lavorativi |
+|---|---:|---:|---:|---:|
+| consegna → 30/09 | 0–1.220 | 0–2,3 l (*) | 41,6% | ≈ 0,1 l |
+| 30/09 → 11/10 | 1.220–1.981 | 35,68 l (misurato) | 73,1% | 26,1 l |
+| 11/10 → 23/10 | 1.981–2.752 | 39,03 l (misurato) | 58,5% | 22,8 l |
+| 23/10 → 25/10 | 2.752–3.073 | 17,5–18,8 l (dall'indicatore) | 46,1% | 8,7 l |
 
-In pratica il pieno aziendale del 23/10 (39,03 l) copre già la quota lavorativa dei consumi dalla consegna. **Il prossimo pieno è da pagare con la carta personale** in tutti i casi. Dopo quel pieno il saldo torna positivo. Con un uso simile a oggi (circa 57% lavoro, pieni da circa 35 l) servono uno o due pieni personali, a seconda della benzina alla consegna, prima che un pieno aziendale sia compatibile. A regime si arriva a circa un pieno aziendale ogni due, e nel lungo periodo l'alternanza converge alla quota lavorativa reale.
+Il consumo misurato è 4,7–5,1 l/100 km.
 
-**Procedura consigliata:**
-1. All'onboarding indica la benzina alla consegna, se la ricordi (o se risulta dal verbale di consegna).
-2. Al prossimo rifornimento fai il **pieno completo** e segnalo come "pieno". Da lì i consumi sono misurati e l'incertezza corrente scende quasi a zero; resta solo la componente storica fissa, gestita dal criterio prudente.
-3. In alternativa, in *Impostazioni → Regole → Storico* scegli "Ripartenza da data". Il saldo riparte dalla data di riferimento e la benzina nel serbatoio a quella data è attribuita all'azienda (prudente). Lo storico resta comunque nei report.
+**Saldo benzina al 25/10: +10,7 l (intervallo 8,9–12,5 l), affidabilità alta.** Litri lavorativi maturati 57,7 l, meno 39,03 l pagati con UTA e meno 6–10 l forniti con l'auto.
 
----
+(*) **Anomalia del primo tratto.** Con 6–10 l alla consegna e 32,34 l per tornare al pieno su un serbatoio da 40 l, nei primi 1.220 km risultano consumati al massimo 2,3 l. Ai consumi misurati dopo (circa 5 l/100 km) ne servirebbero circa 55–60. Le spiegazioni possibili sono un rifornimento non registrato prima del 30/09, più benzina alla consegna, oppure un primo periodo quasi tutto in elettrico (improbabile con tragitti da 169 km). L'app lo segnala; il calcolo resta prudente, perché attribuisce meno credito. Se emerge un rifornimento mancante, aggiungilo dallo storico: tutti i saldi si ricalcolano.
+
+**Cosa significa per i prossimi rifornimenti:**
+- Il prossimo **pieno** va pagato con la carta personale. I circa 18 l consumati tra il 23 e il 25/10 (46% lavoro) sono già nel saldo, e un pieno aziendale li farebbe pagare interamente all'azienda.
+- Dopo qualche giornata di lavoro è invece compatibile un **parziale aziendale** (circa 18 l dopo 300 km di lavoro).
+- Il pieno successivo, a uso simile, tornerà tipicamente compatibile con la carta aziendale.
 
 ## 7. Test e limitazioni
 
 ### Eseguiti (tutti superati)
 
-**25 test contabili** (`tests/scenarios.test.ts`), uno o più per ciascuno dei 20 scenari richiesti:
+**26 test contabili** (`tests/scenarios.test.ts`, incluso il caso reale di Andrea con i dati del 25/10), uno o più per ciascuno dei 20 scenari richiesti:
 
 1. solo km lavorativi;
 2. solo km personali;

@@ -36,6 +36,7 @@ export function History({ view, setView, openReport }: { view: HistoryView; setV
 }
 
 const TYPE_LABEL: Record<Entry['type'], string> = { fuel: 'Benzina', charge: 'Ricarica', work: 'Km lavoro', reading: 'Lettura' };
+export const PURPOSE: Record<string, string> = { 'casa-lavoro': 'casa-lavoro', trasferta: 'trasferta', altro: 'altro' };
 const TYPE_ICON: Record<Entry['type'], string> = { fuel: 'pump', charge: 'bolt', work: 'road', reading: 'gauge' };
 
 function Entries() {
@@ -99,7 +100,7 @@ function line(e: Entry): string {
     case 'charge':
       return `${e.kind === 'home' ? 'Domestica' : 'Pubblica'} · ${e.energyWh != null ? fmt.kwh(e.energyWh) : 'kWh n.d.'}${e.amountCents != null ? ` · ${fmt.eur(e.amountCents)}` : ''}${chargePriceMilli(e) ? ` · ${fmt.priceKwh(chargePriceMilli(e))}` : ''}${e.sessions ? ` · ${e.sessions} ricariche` : ''}`;
     case 'work':
-      return `${e.kmMax != null ? `${e.km}–${e.kmMax}` : e.km} km lavorativi${e.tsFrom ? ` dal ${fmt.date(e.tsFrom)}` : ''}${e.odo != null ? ` · contachilometri ${fmt.km(e.odo)}` : ''}`;
+      return `${e.kmMax != null ? `${e.km}–${e.kmMax}` : e.km} km lavorativi${e.purpose ? ` · ${PURPOSE[e.purpose]}` : ''}${e.tsFrom ? ` dal ${fmt.date(e.tsFrom)}` : ''}${e.odo != null ? ` · contachilometri ${fmt.km(e.odo)}` : ''}`;
     case 'reading':
       return `Contachilometri ${fmt.km(e.odo)}${e.fuelLevel != null ? ` · serbatoio ${Math.round(e.fuelLevel * 8)}/8` : ''}${e.tripAvgL100 != null ? ` · ${fmt.num(e.tripAvgL100)} l/100 km` : ''}`;
   }

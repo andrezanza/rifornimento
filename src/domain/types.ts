@@ -50,8 +50,12 @@ export interface ChargeEntry extends Base {
   attribution?: 'proporzionale' | 'lavoro';
 }
 
+export type WorkPurpose = 'casa-lavoro' | 'trasferta' | 'altro';
+
 export interface WorkEntry extends Base {
   type: 'work';
+  /** tipo di tragitto lavorativo */
+  purpose?: WorkPurpose;
   /** km lavorativi (limite inferiore se kmMax presente) */
   km: number;
   /** limite superiore se il dato è un intervallo (es. storico 1650–1660) */

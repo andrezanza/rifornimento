@@ -1,38 +1,33 @@
 import { useState } from 'react';
 import { useStore } from '../data/store';
-import { ANDREA_DEFAULTS } from '../domain/seed';
+import { ANDREA_DEFAULTS, ANDREA_TRIPS, deliveryRange } from '../domain/seed';
 import { fmt, parseDecimal } from '../domain/units';
-import { Card, Field, Icon, NumInput, Segmented, QualityBadge } from './components';
+import { Card, Details, Field, Icon, NumInput, Segmented, QualityBadge } from './components';
 
 const LEVELS = [
   { value: 'unk', label: 'Non so' }, { value: '1', label: 'Pieno' }, { value: '0.75', label: '3/4' },
-  { value: '0.5', label: '1/2' }, { value: '0.25', label: '1/4' }, { value: '0.1', label: 'Riserva' },
+  { value: '0.5', label: '1/2' }, { value: '0.25', label: '1/4' }, { value: '0.2', label: '< 1/4' }, { value: '0.1', label: 'Riserva' },
 ];
 
 export function Onboarding() {
   const { onboard, startEmpty } = useStore();
   const [odo, setOdo] = useState(String(ANDREA_DEFAULTS.currentOdo));
-  const [wMin, setWMin] = useState(String(ANDREA_DEFAULTS.workKmMin));
-  const [wMax, setWMax] = useState(String(ANDREA_DEFAULTS.workKmMax));
-  const [deliv, setDeliv] = useState('unk');
-  const [now, setNow] = useState('unk');
+  const [date, setDate] = useState(ANDREA_DEFAULTS.currentTs.slice(0, 10));
+  const [deliv, setDeliv] = useState(String(ANDREA_DEFAULTS.deliveryLevel ?? 'unk'));
+  const [now, setNow] = useState(String(ANDREA_DEFAULTS.currentLevel ?? 'unk'));
+  const workTot = ANDREA_TRIPS.reduce((a, t) => a + t.km, 0);
 
   const go = async () => {
-    const cap = 40;
     const dl = deliv === 'unk' ? null : Number(deliv);
-    const tol = 0.0625;
+    const r = deliveryRange(dl, 40);
     await onboard(
       {
-        ...ANDREA_DEFAULTS,
         currentOdo: parseDecimal(odo) ?? ANDREA_DEFAULTS.currentOdo,
-        workKmMin: parseDecimal(wMin) ?? ANDREA_DEFAULTS.workKmMin,
-        workKmMax: parseDecimal(wMax) ?? ANDREA_DEFAULTS.workKmMax,
+        currentTs: `${date}T${date === ANDREA_DEFAULTS.currentTs.slice(0, 10) ? ANDREA_DEFAULTS.currentTs.slice(11) : '12:00'}`,
         deliveryLevel: dl,
         currentLevel: now === 'unk' ? null : Number(now),
       },
-      dl == null
-        ? { deliveryFuelMinL: 0, deliveryFuelMaxL: cap }
-        : { deliveryFuelMinL: Math.max(0, (dl - tol) * cap), deliveryFuelMaxL: Math.min(cap, (dl + tol) * cap) },
+      { deliveryFuelMinL: r.min, deliveryFuelMaxL: r.max },
     );
   };
 
@@ -45,7 +40,7 @@ export function Onboarding() {
       </div>
 
       <Card title="Dati già disponibili">
-        <p className="small">Questi dati sono già precaricati, non devi reinserirli:</p>
+        <p className="small">Questi dati sono già precaricati, non devi reinserirli. Rifornimenti (tutti pieni completi):</p>
         <table className="tbl">
           <thead><tr><th>Data</th><th>Km</th><th>Litri</th><th>€</th><th>€/l</th><th>Carta</th></tr></thead>
           <tbody>
@@ -54,33 +49,39 @@ export function Onboarding() {
             <tr><td>23/10</td><td>2.752</td><td>39,03</td><td>77,67</td><td>1,990</td><td>UTA</td></tr>
           </tbody>
         </table>
+        <Details summary={`${ANDREA_TRIPS.length} tragitti lavorativi, ${fmt.km(workTot)}`}>
+          <table className="tbl">
+            <tbody>
+              {ANDREA_TRIPS.map((t) => <tr key={t.date}><td>{fmt.date(t.date)}</td><td>{t.purpose === 'trasferta' ? 'Trasferta (cliente)' : 'Casa-lavoro'}</td><td>{t.km} km</td></tr>)}
+            </tbody>
+          </table>
+        </Details>
         <ul className="qual">
-          <li><QualityBadge q="certo" /> date, contachilometri, litri, importi, metodo di pagamento</li>
-          <li><QualityBadge q="stimato" /> km lavorativi 1.650–1.660 dalla consegna (non ripartibili per mese)</li>
-          <li><QualityBadge q="sconosciuto" /> benzina alla consegna e prima/dopo ogni rifornimento, ricariche domestiche</li>
+          <li><QualityBadge q="certo" /> date, contachilometri, litri, importi, pagamento, pieni completi, tragitti lavorativi</li>
+          <li><QualityBadge q="stimato" /> benzina alla consegna (circa 1/4, un po' meno: 6–10 l), indicatore benzina attuale</li>
+          <li><QualityBadge q="sconosciuto" /> storico delle ricariche domestiche</li>
           <li><QualityBadge q="provvisorio" /> plafond 500 €/mese, rinnovo il 1° del mese, comprensivo delle ricariche</li>
         </ul>
-        <p className="muted small">I consumi medi del computer di bordo (19,3 km/l, 5,2 kWh/100 km) sono conservati solo come riferimento: su 2.910 km implicherebbero circa 151 l di benzina, mentre ne risultano acquistati 107 l più al massimo 40 l presenti alla consegna. Non vengono quindi usati come misura.</p>
+        <p className="muted small">I consumi medi del computer di bordo (19,3 km/l, 5,2 kWh/100 km) sono conservati solo come riferimento e non usati come misura: i consumi reali si ricavano dai pieni.</p>
       </Card>
 
       <Card title="Situazione attuale">
         <div className="row2">
-          <Field label="Contachilometri oggi"><NumInput value={odo} onChange={setOdo} suffix="km" /></Field>
-          <Field label="Km lavorativi dalla consegna"><div className="row2 tight"><NumInput value={wMin} onChange={setWMin} /><NumInput value={wMax} onChange={setWMax} /></div></Field>
+          <Field label="Contachilometri"><NumInput value={odo} onChange={setOdo} suffix="km" /></Field>
+          <Field label="Alla data"><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
         </div>
-        <Field label="Benzina alla consegna (se la ricordi)" hint="È l'unico dato storico che cambia davvero il saldo: il carburante fornito con l'auto è considerato aziendale.">
-          <Segmented value={deliv} onChange={setDeliv} options={LEVELS} />
+        <Field label="Indicatore benzina a quella data">
+          <Segmented value={now} onChange={setNow} options={LEVELS.filter((l) => !['0.2', '0.1'].includes(l.value))} />
         </Field>
-        <Field label="Indicatore benzina adesso (facoltativo)">
-          <Segmented value={now} onChange={setNow} options={LEVELS.filter((l) => l.value !== '0.1')} />
+        <Field label="Benzina alla consegna" hint="Il carburante fornito con l'auto è considerato aziendale.">
+          <Segmented value={deliv} onChange={setDeliv} options={LEVELS} />
         </Field>
         <button className="btn btn-primary btn-block btn-lg" onClick={go} data-testid="onboard">
           <Icon name="check" /> Importa i dati e inizia
         </button>
-        <p className="muted small">Consiglio: al prossimo rifornimento fai il <strong>pieno completo</strong> e segnalo come tale. Da lì i consumi diventano misurati e i calcoli più affidabili.</p>
+        <p className="muted small">Da qui in avanti: registra i km di lavoro (con il contachilometri quando puoi) e fai sempre il <strong>pieno completo</strong>, così i consumi restano misurati.</p>
       </Card>
       <button className="linkbtn center" onClick={() => startEmpty({})}>Inizia senza dati storici</button>
-      <p className="muted small center">Contachilometri di riferimento: {fmt.km(2910)} al 23/10/2026.</p>
     </div>
   );
 }

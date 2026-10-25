@@ -484,6 +484,16 @@ export function compute(state: AppState, opts: EngineOptions): EngineResult {
   };
 
   for (let k = 0; k + 1 < anchors.length; k++) segments.push(buildSegment(k, anchors[k], anchors[k + 1]));
+  // Consumo quasi nullo su molti km: possibile in elettrico puro, ma spesso indica un rifornimento non registrato
+  // o una scorta iniziale sottostimata. Il calcolo resta prudente (meno credito), ma va segnalato.
+  for (const sg of segments) {
+    if (sg.km >= 300 && sg.consumedL.hi < sg.km * 0.01) {
+      warnings.push({
+        level: 'attenzione',
+        text: `Tratto ${sg.startOdo}–${sg.endOdo} km: risultano consumati al massimo ${sg.consumedL.hi.toFixed(1)} l di benzina su ${sg.km} km (${(sg.consumedL.hi / sg.km * 100).toFixed(1)} l/100 km). Se non è stato percorso quasi tutto in elettrico, manca un rifornimento o la benzina iniziale era di più.`,
+      });
+    }
+  }
   const lastAnchor = anchors[anchors.length - 1];
   const open = buildSegment(segments.length, lastAnchor, null);
 

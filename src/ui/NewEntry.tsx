@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '../data/store';
-import type { ChargeEntry, Entry, FuelEntry, Payment, ReadingEntry, WorkEntry } from '../domain/types';
+import type { ChargeEntry, Entry, FuelEntry, Payment, ReadingEntry, WorkEntry, WorkPurpose } from '../domain/types';
 import { fmt, nowLocalIso, parseDecimal, toScaled, uid, unitPriceMilli, amountFromPrice } from '../domain/units';
 import { sortEntries } from '../domain/engine';
 import { Card, Field, Icon, NumInput, Segmented, Toggle, toast, Details } from './components';
@@ -93,6 +93,7 @@ function WorkForm({ initial, onDone }: { initial?: WorkEntry; onDone: () => void
   const [aggregate, setAggregate] = useState(!!initial?.tsFrom);
   const [from, setFrom] = useState(initial?.tsFrom?.slice(0, 10) ?? '');
   const [note, setNote] = useState(initial?.note ?? '');
+  const [purpose, setPurpose] = useState<WorkPurpose>(initial?.purpose ?? 'casa-lavoro');
   const b = useOdoBounds(ts, initial?.id);
   const kmV = parseDecimal(km), kmMaxV = parseDecimal(kmMax), odoV = parseDecimal(odo);
   const kmErr = km && (kmV == null || kmV <= 0) ? 'Inserisci un numero positivo.' : null;
@@ -105,7 +106,7 @@ function WorkForm({ initial, onDone }: { initial?: WorkEntry; onDone: () => void
 
   const save = async () => {
     const e = stamp<WorkEntry>({
-      type: 'work', ts, km: kmV!, kmMax: kmMaxV ?? undefined, odo: odoV ?? undefined,
+      type: 'work', ts, km: kmV!, kmMax: kmMaxV ?? undefined, odo: odoV ?? undefined, purpose,
       tsFrom: aggregate && from ? `${from}T00:00` : undefined, note: note || undefined,
     }, initial);
     await (initial ? update(e) : add(e));
@@ -118,6 +119,9 @@ function WorkForm({ initial, onDone }: { initial?: WorkEntry; onDone: () => void
       <p className="muted small">Inserisci i km di lavoro (anche cumulati su più giorni). I km personali si ricavano dal contachilometri: non serve registrarli.</p>
       <Field label="Km lavorativi" error={kmErr}>
         <NumInput name="workKm" value={km} onChange={setKm} suffix="km" autoFocus={!initial} placeholder="es. 84" />
+      </Field>
+      <Field label="Tipo di tragitto">
+        <Segmented<WorkPurpose> name="purpose" value={purpose} onChange={setPurpose} options={[{ value: 'casa-lavoro', label: 'Casa-lavoro' }, { value: 'trasferta', label: 'Trasferta' }, { value: 'altro', label: 'Altro' }]} />
       </Field>
       <div className="chips">
         {[20, 40, 60, 80, 100].map((n) => <button key={n} type="button" className="chip" onClick={() => setKm(String((kmV ?? 0) + n))}>+{n}</button>)}

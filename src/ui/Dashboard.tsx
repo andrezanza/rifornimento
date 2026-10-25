@@ -38,7 +38,7 @@ export function Dashboard({ go }: { go: (t: Tab, sub?: string) => void }) {
         </div>
         <p className="hero-p">{plan.headline}</p>
         <div className="hero-kpis">
-          <div><small>Litri aziendali giustificabili</small><strong>{fmt.l(plan.maxCompanyL)}</strong></div>
+          <div><small>{plan.mode === 'pieno' ? 'Pieno aziendale fino a' : 'Parziale aziendale fino a'}</small><strong>{fmt.l(plan.maxCompanyL)}</strong></div>
           <div><small>Pieno stimato</small><strong>{fmt.num(plan.fitL.lo, 0)}–{fmt.num(plan.fitL.hi, 0)} l</strong></div>
         </div>
         <button className="btn btn-primary btn-block" onClick={() => go('plan')}>

@@ -29,10 +29,10 @@ ok(await page.isVisible('text=Prossimo pieno'), 'dashboard dopo onboarding');
 // Registrazione km lavorativi
 await page.click('nav button:has-text("Registra")');
 await page.fill('input[name=workKm]', '84');
-await page.fill('input[name=workOdo]', '3000');
+await page.fill('input[name=workOdo]', '3200');
 await page.click('button:has-text("Salva")');
 await page.waitForSelector('text=Uso lavorativo');
-ok(await page.isVisible('text=1734–1744 km'), 'km lavorativi aggiornati (1650–1660 + 84)');
+ok(await page.isVisible('text=1746 km'), 'km lavorativi aggiornati (1662 + 84)');
 
 // Validazione: contachilometri inferiore
 await page.click('nav button:has-text("Registra")');
@@ -74,7 +74,7 @@ await page.click('nav button:has-text("Registra")');
 await page.fill('input[name=workKm]', '10');
 await page.click('button:has-text("Salva")');
 await page.waitForSelector('text=Uso lavorativo');
-ok(await page.isVisible('text=1744–1754 km'), 'registrazione offline salvata');
+ok(await page.isVisible('text=1756 km'), 'registrazione offline salvata');
 await ctx.setOffline(false);
 
 // Backup
@@ -83,7 +83,7 @@ const [dl] = await Promise.all([page.waitForEvent('download'), page.click('butto
 const path = `${SHOTS}/backup.json`;
 await dl.saveAs(path);
 const backup = JSON.parse(readFileSync(path, 'utf8'));
-ok(backup.app === 'rifornimento' && backup.state.entries.length === 8, `backup con ${backup.state.entries.length} registrazioni`);
+ok(backup.app === 'rifornimento' && backup.state.entries.length === 19, `backup con ${backup.state.entries.length} registrazioni`);
 await page.screenshot({ path: `${SHOTS}/settings.png`, fullPage: true });
 
 // Ripristino su altro dispositivo (contesto pulito)
@@ -96,13 +96,13 @@ p2.on('dialog', (d) => d.accept());
 await p2.setInputFiles('[data-testid=restore-input]', path);
 await p2.waitForTimeout(500);
 await p2.click('nav button:has-text("Situazione")');
-ok(await p2.isVisible('text=1744–1754 km'), 'ripristino su nuovo dispositivo: dati identici');
+ok(await p2.isVisible('text=1756 km'), 'ripristino su nuovo dispositivo: dati identici');
 // Dati persistenti dopo chiusura
 await p2.close();
 const p3 = await ctx2.newPage();
 await p3.goto(URL_);
 await p3.waitForSelector('text=Saldo benzina lavorativo');
-ok(await p3.isVisible('text=1744–1754 km'), 'dati persistenti dopo riapertura');
+ok(await p3.isVisible('text=1756 km'), 'dati persistenti dopo riapertura');
 
 // Modifica retroattiva ed eliminazione dallo storico
 await p3.click('nav button:has-text("Storico")');

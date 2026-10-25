@@ -168,7 +168,7 @@ export function entriesCsv(state: AppState): string {
         pu: dec(chargePriceMilli(e) == null ? null : chargePriceMilli(e)! / 1000, 3), pag: pay(e.payment), st: e.estimated ? 'sì' : 'no',
       });
     } else if (e.type === 'work') {
-      Object.assign(base, { tipo: 'km lavorativi', dal: e.tsFrom ?? '', odo: e.odo != null ? String(e.odo) : '', wk: String(e.km), wkm: e.kmMax != null ? String(e.kmMax) : '', st: e.kmMax != null ? 'sì' : 'no' });
+      Object.assign(base, { tipo: e.purpose ? `km lavorativi (${e.purpose})` : 'km lavorativi', dal: e.tsFrom ?? '', odo: e.odo != null ? String(e.odo) : '', wk: String(e.km), wkm: e.kmMax != null ? String(e.kmMax) : '', st: e.kmMax != null ? 'sì' : 'no' });
     } else {
       Object.assign(base, { tipo: 'lettura', odo: String(e.odo) });
     }

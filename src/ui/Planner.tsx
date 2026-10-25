@@ -59,7 +59,7 @@ function FuelPlanner({ onRecord }: { onRecord: (prefill: Partial<FuelEntry>) => 
         </div>
         <p className="hero-p">{plan.headline}</p>
         <div className="hero-kpis">
-          <div><small>Max con carta aziendale</small><strong data-testid="maxL">{fmt.l(plan.maxCompanyL)}</strong></div>
+          <div><small>{plan.mode === 'pieno' ? 'Pieno aziendale fino a' : 'Parziale aziendale fino a'}</small><strong data-testid="maxL">{fmt.l(plan.maxCompanyL)}</strong></div>
           <div><small>Litri considerati</small><strong>{fmt.l(plan.litersUsed)}{plan.litersEstimated ? '*' : ''}</strong></div>
           {plan.amountCents != null && <div><small>Importo</small><strong>{fmt.eur(plan.amountCents)}</strong></div>}
         </div>

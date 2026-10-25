@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useStore } from '../data/store';
 import { sortEntries, fuelAmountCents, fuelPriceMilli } from '../domain/engine';
 import { monthlyReport } from '../domain/reports';
-import type { ChargeEntry, FuelEntry } from '../domain/types';
+import type { ChargeEntry, FuelEntry, WorkEntry } from '../domain/types';
 import { fmt, nowLocalIso } from '../domain/units';
 import { Icon, RangeL } from './components';
 
@@ -13,6 +13,7 @@ export function Report({ onClose }: { onClose: () => void }) {
   const entries = sortEntries(state.entries);
   const fuels = entries.filter((e): e is FuelEntry => e.type === 'fuel');
   const charges = entries.filter((e): e is ChargeEntry => e.type === 'charge');
+  const trips = entries.filter((e): e is WorkEntry => e.type === 'work');
 
   return (
     <div className="report">
@@ -67,7 +68,18 @@ export function Report({ onClose }: { onClose: () => void }) {
       </table>
       <p className="small">* km mensili ricavati dal contachilometri per interpolazione.{aggregates.map((a) => ` Km lavorativi ${a.entry.kmMax ? `${a.entry.km}–${a.entry.kmMax}` : a.entry.km} dal ${fmt.date(a.from)} al ${fmt.date(a.to)}: stima aggregata non ripartibile per mese.`).join('')}</p>
 
-      <h2>4. Rifornimenti</h2>
+      <h2>4. Tragitti lavorativi</h2>
+      <table className="tbl">
+        <thead><tr><th>Data</th><th>Tipo</th><th>Km</th><th>Note</th></tr></thead>
+        <tbody>
+          {trips.map((w) => (
+            <tr key={w.id}><td>{w.tsFrom ? `${fmt.date(w.tsFrom)}–` : ''}{fmt.date(w.ts)}</td><td>{w.purpose ?? '—'}</td><td>{w.kmMax != null ? `${w.km}–${w.kmMax}` : w.km}</td><td>{w.note ?? ''}</td></tr>
+          ))}
+          <tr><td><strong>Totale</strong></td><td></td><td><strong>{trips.reduce((a, w) => a + w.km, 0)}</strong></td><td></td></tr>
+        </tbody>
+      </table>
+
+      <h2>5. Rifornimenti</h2>
       <table className="tbl">
         <thead><tr><th>Data</th><th>Km</th><th>Litri</th><th>Importo</th><th>€/l</th><th>Pagamento</th><th>Pieno</th></tr></thead>
         <tbody>
@@ -78,7 +90,7 @@ export function Report({ onClose }: { onClose: () => void }) {
       </table>
       {charges.length > 0 && (
         <>
-          <h2>5. Ricariche</h2>
+          <h2>6. Ricariche</h2>
           <table className="tbl">
             <thead><tr><th>Data</th><th>Tipo</th><th>kWh</th><th>Importo</th><th>Pagamento</th></tr></thead>
             <tbody>

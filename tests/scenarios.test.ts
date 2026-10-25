@@ -2,7 +2,9 @@
 import { describe, expect, it } from 'vitest';
 import { compute } from '../src/domain/engine';
 import { planCharge, planFuel } from '../src/domain/planner';
-import { emptyState, historicalEntries, ANDREA_DEFAULTS } from '../src/domain/seed';
+import { emptyState, historicalEntries, ANDREA_DEFAULTS, deliveryRange } from '../src/domain/seed';
+
+const rangeSettings = (r: { min: number; max: number }) => ({ deliveryFuelMinL: r.min, deliveryFuelMaxL: r.max });
 import { entriesCsv, makeBackup, monthlyCsv, monthlyReport, parseBackup } from '../src/domain/reports';
 import { toScaled, unitPriceMilli, parseDecimal } from '../src/domain/units';
 import type { AppState, Entry, Settings } from '../src/domain/types';
@@ -182,26 +184,48 @@ describe('Scenari di validazione', () => {
     expect(r2.plafond.remainingCents).toBe(50000);
   });
 
-  it('13. saldo iniziale non ricostruibile: dati reali di Andrea → intervallo dichiarato, nessun valore esatto', () => {
+  it('13. saldo iniziale non ricostruibile: benzina alla consegna sconosciuta → intervallo dichiarato', () => {
     const s = emptyState();
     s.entries = historicalEntries(ANDREA_DEFAULTS, T);
-    const r = compute(s, { now: '2026-10-23T23:00' });
-    expect(r.fuel.balanceL.hi - r.fuel.balanceL.lo).toBeGreaterThan(15);
+    const now = { now: '2026-10-25T11:30' };
+    const r = compute(s, now); // consegna non nota: 0–40 l
+    expect(r.fuel.balanceL.hi - r.fuel.balanceL.lo).toBeGreaterThan(20);
     expect(r.fuel.balanceL.lo).toBeLessThan(0);
     expect(r.fuel.balanceL.hi).toBeGreaterThan(0);
-    expect(r.fuel.historyWidthL).toBeGreaterThan(10);
-    // la scorta attuale è delimitata fisicamente (39,03 l in un serbatoio da 40 l, poi 158 km)
-    expect(r.stockNow.lo).toBeGreaterThan(27);
-    expect(r.stockNow.hi).toBeLessThanOrEqual(40);
-    // conoscere il carburante alla consegna restringe l'intervallo
-    const s2 = { ...s, settings: { ...s.settings, deliveryFuelMinL: 17.5, deliveryFuelMaxL: 22.5 } };
-    const r2 = compute(s2, { now: '2026-10-23T23:00' });
-    expect(r2.fuel.balanceL.hi - r2.fuel.balanceL.lo).toBeLessThan(r.fuel.balanceL.hi - r.fuel.balanceL.lo - 10);
+    expect(r.fuel.historyWidthL).toBeGreaterThan(20);
+    // con il dato di Andrea (circa 1/4, un po' meno → 6–10 l) l'intervallo si restringe
+    const r2 = compute({ ...s, settings: { ...s.settings, ...rangeSettings(deliveryRange(0.2, 40)) } }, now);
+    expect(r2.fuel.balanceL.hi - r2.fuel.balanceL.lo).toBeLessThan(4);
+    close(r2.fuel.balanceL.mid, 10.67, 0.05);
+    // la lettura dell'indicatore (metà, ±1/16) delimita la scorta attuale
+    expect(r2.stockNow.lo).toBeGreaterThanOrEqual(17.5 - 1e-9);
+    expect(r2.stockNow.hi).toBeLessThanOrEqual(22.5 + 1e-9);
     // modalità ripartenza: saldo dalla data di riferimento, storico conservato nei report
     const s3 = { ...s, settings: { ...s.settings, historyMode: 'reset' as const, referenceTs: '2026-10-23T22:00' } };
-    const r3 = compute(s3, { now: '2026-10-23T23:00' });
+    const r3 = compute(s3, now);
     expect(r3.start.mode).toBe('reset');
     expect(monthlyReport(s3).rows.find((m) => m.month === '2026-10')!.fuelCompanyCents).toBe(7767);
+  });
+
+  it('13b. dati reali di Andrea: tratti pieno-a-pieno misurati e anomalia del primo tratto segnalata', () => {
+    const s = emptyState();
+    s.entries = historicalEntries(ANDREA_DEFAULTS, T);
+    s.settings = { ...s.settings, ...rangeSettings(deliveryRange(0.2, 40)) };
+    const r = compute(s, { now: '2026-10-25T11:30' });
+    const [s0, s1, s2] = r.segments;
+    expect(s1.measured && s2.measured).toBe(true);
+    close(s1.consumedL.mid, 35.68); close(s1.workShare.mid, 556 / 761);
+    close(s2.consumedL.mid, 39.03); close(s2.workShare.mid, 451 / 771);
+    close(s0.workShare.mid, 507 / 1220);
+    expect(s0.consumedL.hi).toBeLessThan(2.5); // 6–10 l + 32,34 l per tornare a 40 l
+    expect(r.warnings.some((w) => w.text.includes('manca un rifornimento'))).toBe(true);
+    expect(r.rate.source).toBe('misurato');
+    // pieno al prossimo rifornimento (3400 km, +300 km di lavoro): non coperto, parziale aziendale sì
+    const p = planFuel(s, { full: true, liters: null, priceMilli: null, amountCents: null, odo: 3400, extraWorkKm: 300, ts: '2026-10-30T18:00' });
+    expect(p.verdict).toBe('parziale');
+    expect(p.mode).toBe('parziale');
+    expect(p.partialMaxL).toBeGreaterThan(15);
+    expect(p.fullMaxL).toBe(0);
   });
 
   it('14. consumi medi stimati vs effettivi: dopo due pieni si usa il consumo misurato', () => {
@@ -247,21 +271,22 @@ describe('Scenari di validazione', () => {
     expect(() => parseBackup(JSON.stringify(dup))).toThrow(/duplicati/);
   });
 
-  it('18. ricostruzione automatica dello storico iniziale con date e importi reali', () => {
+  it('18. ricostruzione automatica dello storico iniziale con date, importi e tragitti reali', () => {
     const s = emptyState();
     s.entries = historicalEntries(ANDREA_DEFAULTS, T);
     const { rows, aggregates } = monthlyReport(s);
     const sep = rows.find((m) => m.month === '2026-09')!, oct = rows.find((m) => m.month === '2026-10')!;
     expect(sep.fuelPersonalCents).toBe(6400); expect(sep.fuelCompanyCents).toBe(0); expect(sep.fuelCount).toBe(1);
     expect(oct.fuelPersonalCents).toBe(7100); expect(oct.fuelCompanyCents).toBe(7767); expect(oct.fuelCount).toBe(2);
-    // i km lavorativi storici non vengono attribuiti a settembre/ottobre
-    expect(sep.workKm).toBe(0); expect(oct.workKm).toBe(0);
-    expect(aggregates).toHaveLength(1);
-    const r = compute(s, { now: '2026-10-23T23:00' });
+    expect(sep.workKm).toBe(507); expect(oct.workKm).toBe(1155);
+    expect(aggregates).toHaveLength(0);
+    const r = compute(s, { now: '2026-10-25T11:30' });
     expect(r.totals.fuelPersonalCents).toBe(13500);
     expect(r.totals.fuelCompanyCents).toBe(7767);
-    expect(r.totals.km).toBe(2910);
-    expect(entriesCsv(s)).toContain('rifornimento;2026-10-23T08:00;;2752;39,03;;77,67;1,990;aziendale');
+    expect(r.totals.km).toBe(3073);
+    expect(r.totals.workKm.mid).toBe(1662);
+    expect(entriesCsv(s)).toContain('rifornimento;2026-10-23T08:00;;2752;39,03;;77,67;1,990;aziendale;sì');
+    expect(entriesCsv(s)).toContain('km lavorativi (trasferta);2026-10-07T18:00');
     expect(monthlyCsv(s)).toContain('2026-09;1;64,00;0,00');
   });
 
