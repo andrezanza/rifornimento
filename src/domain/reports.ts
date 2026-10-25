@@ -159,7 +159,7 @@ export function entriesCsv(state: AppState): string {
       Object.assign(base, {
         tipo: 'rifornimento', odo: String(e.odo), l: dec(e.litersCl / 100, 2), imp: dec(fuelAmountCents(e) == null ? null : fuelAmountCents(e)! / 100, 2),
         pu: dec(fuelPriceMilli(e) == null ? null : fuelPriceMilli(e)! / 1000, 3), pag: pay(e.payment),
-        pieno: e.full == null ? 'non noto' : e.full ? 'sì' : 'no',
+        pieno: e.full == null ? 'non noto' : e.full ? 'sì' : 'no', st: e.litersEstimated ? 'sì' : 'no',
       });
     } else if (e.type === 'charge') {
       Object.assign(base, {

@@ -30,6 +30,8 @@ export interface FuelEntry extends Base {
   payment: Payment;
   /** true = pieno fino allo scatto della pistola; false = parziale; null = non noto */
   full: boolean | null;
+  /** litri non letti sullo scontrino ma ricavati (es. importo ÷ prezzo ricordato) */
+  litersEstimated?: boolean;
 }
 
 export type ChargeKind = 'home' | 'public';

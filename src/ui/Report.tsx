@@ -84,10 +84,11 @@ export function Report({ onClose }: { onClose: () => void }) {
         <thead><tr><th>Data</th><th>Km</th><th>Litri</th><th>Importo</th><th>€/l</th><th>Pagamento</th><th>Pieno</th></tr></thead>
         <tbody>
           {fuels.map((f) => (
-            <tr key={f.id}><td>{fmt.date(f.ts)}</td><td>{f.odo}</td><td>{fmt.num(f.litersCl / 100, 2)}</td><td>{fmt.eur(fuelAmountCents(f))}</td><td>{fmt.price(fuelPriceMilli(f))}</td><td>{f.payment === 'company' ? 'aziendale' : 'personale'}</td><td>{f.full == null ? 'n.n.' : f.full ? 'sì' : 'no'}</td></tr>
+            <tr key={f.id}><td>{fmt.date(f.ts)}</td><td>{f.odo}</td><td>{fmt.num(f.litersCl / 100, 2)}{f.litersEstimated ? '*' : ''}</td><td>{fmt.eur(fuelAmountCents(f))}</td><td>{fmt.price(fuelPriceMilli(f))}</td><td>{f.payment === 'company' ? 'aziendale' : 'personale'}</td><td>{f.full == null ? 'n.n.' : f.full ? 'sì' : 'no'}</td></tr>
           ))}
         </tbody>
       </table>
+      {fuels.some((f) => f.litersEstimated) && <p className="small">* litri ricavati da importo e prezzo unitario ricordato (non da scontrino).</p>}
       {charges.length > 0 && (
         <>
           <h2>6. Ricariche</h2>

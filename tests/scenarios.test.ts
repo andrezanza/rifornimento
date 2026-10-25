@@ -2,9 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { compute } from '../src/domain/engine';
 import { planCharge, planFuel } from '../src/domain/planner';
-import { emptyState, historicalEntries, ANDREA_DEFAULTS, deliveryRange } from '../src/domain/seed';
-
-const rangeSettings = (r: { min: number; max: number }) => ({ deliveryFuelMinL: r.min, deliveryFuelMaxL: r.max });
+import { emptyState, historicalEntries, ANDREA_DEFAULTS, ANDREA_SETTINGS } from '../src/domain/seed';
 import { entriesCsv, makeBackup, monthlyCsv, monthlyReport, parseBackup } from '../src/domain/reports';
 import { toScaled, unitPriceMilli, parseDecimal } from '../src/domain/units';
 import type { AppState, Entry, Settings } from '../src/domain/types';
@@ -187,16 +185,15 @@ describe('Scenari di validazione', () => {
   it('13. saldo iniziale non ricostruibile: benzina alla consegna sconosciuta → intervallo dichiarato', () => {
     const s = emptyState();
     s.entries = historicalEntries(ANDREA_DEFAULTS, T);
+    s.settings.deliveryOdo = 40;
     const now = { now: '2026-10-25T11:30' };
     const r = compute(s, now); // consegna non nota: 0–40 l
     expect(r.fuel.balanceL.hi - r.fuel.balanceL.lo).toBeGreaterThan(20);
-    expect(r.fuel.balanceL.lo).toBeLessThan(0);
-    expect(r.fuel.balanceL.hi).toBeGreaterThan(0);
     expect(r.fuel.historyWidthL).toBeGreaterThan(20);
-    // con il dato di Andrea (circa 1/4, un po' meno → 6–10 l) l'intervallo si restringe
-    const r2 = compute({ ...s, settings: { ...s.settings, ...rangeSettings(deliveryRange(0.2, 40)) } }, now);
-    expect(r2.fuel.balanceL.hi - r2.fuel.balanceL.lo).toBeLessThan(4);
-    close(r2.fuel.balanceL.mid, 10.67, 0.05);
+    // con i dati di Andrea (4,1–8 l, dal pieno a 48 km e dal ricordo) l'intervallo si restringe
+    const r2 = compute({ ...s, settings: { ...s.settings, ...ANDREA_SETTINGS } }, now);
+    expect(r2.fuel.balanceL.hi - r2.fuel.balanceL.lo).toBeLessThan(7);
+    expect(r2.fuel.balanceL.lo).toBeGreaterThan(r.fuel.balanceL.lo);
     // la lettura dell'indicatore (metà, ±1/16) delimita la scorta attuale
     expect(r2.stockNow.lo).toBeGreaterThanOrEqual(17.5 - 1e-9);
     expect(r2.stockNow.hi).toBeLessThanOrEqual(22.5 + 1e-9);
@@ -207,25 +204,31 @@ describe('Scenari di validazione', () => {
     expect(monthlyReport(s3).rows.find((m) => m.month === '2026-10')!.fuelCompanyCents).toBe(7767);
   });
 
-  it('13b. dati reali di Andrea: tratti pieno-a-pieno misurati e anomalia del primo tratto segnalata', () => {
+  it('13b. dati reali di Andrea: cinque pieni completi, tratti misurati, saldo e raccomandazione', () => {
     const s = emptyState();
     s.entries = historicalEntries(ANDREA_DEFAULTS, T);
-    s.settings = { ...s.settings, ...rangeSettings(deliveryRange(0.2, 40)) };
+    s.settings = { ...s.settings, ...ANDREA_SETTINGS };
     const r = compute(s, { now: '2026-10-25T11:30' });
-    const [s0, s1, s2] = r.segments;
-    expect(s1.measured && s2.measured).toBe(true);
-    close(s1.consumedL.mid, 35.68); close(s1.workShare.mid, 556 / 761);
-    close(s2.consumedL.mid, 39.03); close(s2.workShare.mid, 451 / 771);
-    close(s0.workShare.mid, 507 / 1220);
-    expect(s0.consumedL.hi).toBeLessThan(2.5); // 6–10 l + 32,34 l per tornare a 40 l
-    expect(r.warnings.some((w) => w.text.includes('manca un rifornimento'))).toBe(true);
-    expect(r.rate.source).toBe('misurato');
-    // pieno al prossimo rifornimento (3400 km, +300 km di lavoro): non coperto, parziale aziendale sì
-    const p = planFuel(s, { full: true, liters: null, priceMilli: null, amountCents: null, odo: 3400, extraWorkKm: 300, ts: '2026-10-30T18:00' });
-    expect(p.verdict).toBe('parziale');
-    expect(p.mode).toBe('parziale');
-    expect(p.partialMaxL).toBeGreaterThan(15);
-    expect(p.fullMaxL).toBe(0);
+    const segs = r.segments;
+    expect(segs.map((x) => x.startOdo)).toEqual([40, 48, 512, 1220, 1981, 2752]);
+    expect(segs.slice(1, 5).every((x) => x.measured)).toBe(true);
+    close(segs[1].consumedL.mid, 29.68); close(segs[1].workShare.mid, 0);       // 18–20/09: nessun km di lavoro
+    close(segs[2].consumedL.mid, 32.34); close(segs[2].workShare.mid, 507 / 708);
+    close(segs[3].consumedL.mid, 35.68); close(segs[3].workShare.mid, 556 / 761);
+    close(segs[4].consumedL.mid, 39.03); close(segs[4].workShare.mid, 451 / 771);
+    expect(r.warnings.some((w) => w.text.includes('manca un rifornimento'))).toBe(false);
+    // consumo complessivo coerente con il computer di bordo (19,3 km/l ≈ 5,2 l/100 km)
+    const consumed = segs.reduce((a, x) => a + x.consumedL.mid, 0);
+    close(consumed / r.totals.km * 100, 5.2, 0.35);
+    // saldo: 81,3 l lavorativi − 39,03 l UTA − 4,1…8 l alla consegna
+    close(r.fuel.balanceL.mid, 36.2, 0.2);
+    expect(r.fuel.balanceL.lo).toBeGreaterThan(32);
+    expect(r.fuel.reliability).not.toBe('bassa');
+    // pieno oggi (circa 20 l) compatibile con la carta aziendale
+    const p = planFuel(s, { full: true, liters: null, priceMilli: null, amountCents: null, odo: null, extraWorkKm: null, ts: '2026-10-25T11:40' });
+    expect(p.verdict).toBe('aziendale');
+    expect(p.mode).toBe('pieno');
+    expect(p.fullMaxL).toBeGreaterThan(25);
   });
 
   it('14. consumi medi stimati vs effettivi: dopo due pieni si usa il consumo misurato', () => {
@@ -276,18 +279,21 @@ describe('Scenari di validazione', () => {
     s.entries = historicalEntries(ANDREA_DEFAULTS, T);
     const { rows, aggregates } = monthlyReport(s);
     const sep = rows.find((m) => m.month === '2026-09')!, oct = rows.find((m) => m.month === '2026-10')!;
-    expect(sep.fuelPersonalCents).toBe(6400); expect(sep.fuelCompanyCents).toBe(0); expect(sep.fuelCount).toBe(1);
+    expect(sep.fuelPersonalCents).toBe(20201); expect(sep.fuelCompanyCents).toBe(0); expect(sep.fuelCount).toBe(3);
     expect(oct.fuelPersonalCents).toBe(7100); expect(oct.fuelCompanyCents).toBe(7767); expect(oct.fuelCount).toBe(2);
     expect(sep.workKm).toBe(507); expect(oct.workKm).toBe(1155);
     expect(aggregates).toHaveLength(0);
     const r = compute(s, { now: '2026-10-25T11:30' });
-    expect(r.totals.fuelPersonalCents).toBe(13500);
+    expect(r.totals.fuelPersonalCents).toBe(27301);
     expect(r.totals.fuelCompanyCents).toBe(7767);
-    expect(r.totals.km).toBe(3073);
+    expect(r.totals.km).toBe(3073); // consegna a 0 km nelle impostazioni predefinite
+    const r40 = compute({ ...s, settings: { ...s.settings, ...ANDREA_SETTINGS } }, { now: '2026-10-25T11:30' });
+    expect(r40.totals.km).toBe(3033);
     expect(r.totals.workKm.mid).toBe(1662);
     expect(entriesCsv(s)).toContain('rifornimento;2026-10-23T08:00;;2752;39,03;;77,67;1,990;aziendale;sì');
     expect(entriesCsv(s)).toContain('km lavorativi (trasferta);2026-10-07T18:00');
-    expect(monthlyCsv(s)).toContain('2026-09;1;64,00;0,00');
+    expect(monthlyCsv(s)).toContain('2026-09;3;202,01;0,00');
+    expect(entriesCsv(s)).toContain('rifornimento;2026-09-18T12:00;;48;35,87;;76,01;2,119;personale;sì;;;sì');
   });
 
   it('19. prezzo unitario da litri e importo, senza errori floating-point', () => {

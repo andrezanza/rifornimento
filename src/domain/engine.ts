@@ -460,7 +460,8 @@ export function compute(state: AppState, opts: EngineOptions): EngineResult {
     const kmTot = Math.max(km, wk.hi);
     const wShare = kmTot > 0 ? range.of(wk.lo / kmTot, wk.hi / kmTot, wk.mid / kmTot) : range.zero();
     const supplyIsCompany = k === 0 && s.startFuelBy === 'company';
-    const cons = (s0: number, s1: number) => Math.max(0, s0 + P - s1);
+    // consumo fisicamente possibile: tra 0 e km × consumo massimo plausibile
+    const cons = (s0: number, s1: number) => Math.min(Math.max(0, s0 + P - s1), km > 0 ? km * physical.hi : Infinity);
     const consumedL = corners(a.stock, stockEnd, range.exact(0), (s0, s1) => cons(s0, s1));
     const workL = corners(a.stock, stockEnd, wShare, (s0, s1, w) => w * cons(s0, s1));
     const supplyL = supplyIsCompany ? a.stock : range.zero();

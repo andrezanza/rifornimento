@@ -115,7 +115,7 @@ src/domain/   motore contabile puro e testabile (nessuna dipendenza dal browser)
   seed.ts       impostazioni predefinite e storico reale di Andrea
 src/data/     persistenza IndexedDB, stato React, registro rettifiche, copie di sicurezza
 src/ui/       schermate
-tests/        25 test contabili (Vitest)
+tests/        26 test contabili (Vitest)
 e2e/          test end-to-end nel browser (Playwright + Chromium)
 ```
 
@@ -150,7 +150,7 @@ Codice completo in questa cartella. Comandi:
 ```bash
 npm install          # una volta
 npm run dev          # sviluppo su http://localhost:5173
-npm test             # 25 test contabili
+npm test             # 26 test contabili
 npm run build        # crea la cartella dist/ da pubblicare
 npx vite preview --port 4173 & node e2e/run.mjs   # test end-to-end (serve Chromium)
 ```
@@ -159,48 +159,58 @@ npx vite preview --port 4173 & node e2e/run.mjs   # test end-to-end (serve Chrom
 
 ## 6. Inizializzazione con i dati reali
 
-Alla prima apertura l'app mostra i dati già noti, distinti in certi, stimati, sconosciuti e provvisori, e li importa con un tocco senza chiedere di reinserirli. Aggiornamento del 25/10/2026 con i dati forniti da Andrea.
+Alla prima apertura l'app mostra i dati già noti, distinti in certi, stimati, sconosciuti e provvisori, e li importa con un tocco senza chiedere di reinserirli. Aggiornamento del 25/10/2026 con i dati forniti da Andrea (consegna e due rifornimenti di settembre).
 
 **Rifornimenti** (tutti pieni completi, confermati):
 
-| Data | Km | Litri | Importo | €/l (calcolato) | Pagamento |
-|---|---:|---:|---:|---:|---|
-| 30/09/2026 | 1.220 | 32,34 | 64,00 € | 1,979 | personale |
-| 11/10/2026 | 1.981 | 35,68 | 71,00 € | 1,990 | personale |
-| 23/10/2026 | 2.752 | 39,03 | 77,67 € | 1,990 | UTA e+ |
+| Data | Km | Litri | Importo | €/l | Pagamento | Distributore |
+|---|---:|---:|---:|---:|---|---|
+| 18/09/2026 | 48 | 35,87 (*) | 76,01 € | 2,119 (ricordato) | personale | Eni, Via Altinia 282, Venezia |
+| 20/09/2026 | 512 | 29,68 (*) | 62,00 € | 2,089 (ricordato) | personale | Iper Staroil, Via E. Bacchion 3, Venezia |
+| 30/09/2026 | 1.220 | 32,34 | 64,00 € | 1,979 | personale | |
+| 11/10/2026 | 1.981 | 35,68 | 71,00 € | 1,990 | personale | |
+| 23/10/2026 | 2.752 | 39,03 | 77,67 € | 1,990 | UTA e+ | |
+
+(*) Litri ricavati da importo (certo) e prezzo (ricordato), registrati come **stimati** (`litersEstimated`).
+
+**Verifica dei prezzi.** L'archivio per impianto del MIMIT (Osservaprezzi) non è consultabile da questo ambiente, quindi i prezzi esatti dei due impianti in quei giorni non sono verificabili. Controlli di coerenza:
+- media nazionale benzina self: 2,149 €/l il 18/09/2026 (Teleborsa su dati MIMIT) e 2,154 €/l il 20/09/2026 (Soldionline su dati MIMIT);
+- Eni Via Altinia 282: oggi circa 3–4 centesimi sotto la media nazionale (1,990 il 23/10, uguale al prezzo pagato da Andrea quel giorno); 2,119 il 18/09 è 3 centesimi sotto la media, coerente;
+- impianto di Via Bacchion (ex Auchan, ora Iper Staroil): oggi circa 4 centesimi sotto la media; 2,089 il 20/09 è 6,5 centesimi sotto, plausibile per un impianto di ipermercato.
+
+I prezzi sono plausibili e coerenti, non certi. Un errore di ±3 centesimi sposta i litri di circa ±0,5 l per rifornimento, e il saldo di meno di 0,5 l (il 18–20/09 non ci sono km di lavoro).
 
 **Tragitti lavorativi:** 11 tragitti datati, 1.662 km in totale (10 casa-lavoro e ritorno, 1 trasferta da cliente), registrati con il tipo di tragitto.
 
 **Altri dati:**
-- consegna 18/09 con circa 1/4 di serbatoio, un po' meno, non in riserva (6–10 l, fornito con l'auto, quindi aziendale);
+- consegna 18/09 a 40 km (verbale di consegna) con circa 1/4 di serbatoio, un po' meno; il pieno a 48 km (35,87 l su 40 l) indica 4,1–4,8 l, quindi l'intervallo impostato è 4,1–8 l, fornito con l'auto e quindi aziendale;
 - rilevazioni il 23/10 a 2.910 km e il 25/10 a 3.073 km, con indicatore a metà.
 
 **Report mensile ricostruito:**
 
 | Mese | Benzina personale | Benzina aziendale | Km lavorativi |
 |---|---|---|---|
-| settembre 2026 | 64,00 € (32,34 l) | 0,00 € | 507 km |
+| settembre 2026 | 202,01 € (97,89 l, 3 pieni) | 0,00 € | 507 km |
 | ottobre 2026 | 71,00 € (35,68 l) | 77,67 € (39,03 l) | 1.155 km |
 
 **Tratti pieno-a-pieno:**
 
-| Tratto | Km | Benzina consumata | Quota lavoro | Litri lavorativi |
-|---|---:|---:|---:|---:|
-| consegna → 30/09 | 0–1.220 | 0–2,3 l (*) | 41,6% | ≈ 0,1 l |
-| 30/09 → 11/10 | 1.220–1.981 | 35,68 l (misurato) | 73,1% | 26,1 l |
-| 11/10 → 23/10 | 1.981–2.752 | 39,03 l (misurato) | 58,5% | 22,8 l |
-| 23/10 → 25/10 | 2.752–3.073 | 17,5–18,8 l (dall'indicatore) | 46,1% | 8,7 l |
+| Tratto | Km | Benzina consumata | Consumo | Quota lavoro | Litri lavorativi |
+|---|---:|---:|---:|---:|---:|
+| consegna → 18/09 | 40–48 | 0–3,9 l | | 0% | 0 |
+| 18/09 → 20/09 | 48–512 | 29,68 l | 6,4 l/100 km | 0% | 0 |
+| 20/09 → 30/09 | 512–1.220 | 32,34 l | 4,6 l/100 km | 71,6% | 23,2 l |
+| 30/09 → 11/10 | 1.220–1.981 | 35,68 l | 4,7 l/100 km | 73,1% | 26,1 l |
+| 11/10 → 23/10 | 1.981–2.752 | 39,03 l | 5,1 l/100 km | 58,5% | 22,8 l |
+| 23/10 → 25/10 | 2.752–3.073 | 17,5–18,8 l (dall'indicatore) | | 46,1% | 8,7 l |
 
-Il consumo misurato è 4,7–5,1 l/100 km.
+Km percorsi 3.033, di cui 54,8% per lavoro. Il consumo complessivo (circa 5,2 l/100 km) ora coincide con il computer di bordo (19,3 km/l): l'anomalia del primo tratto segnalata in precedenza era il rifornimento mancante, ed è risolta.
 
-**Saldo benzina al 25/10: +10,7 l (intervallo 8,9–12,5 l), affidabilità alta.** Litri lavorativi maturati 57,7 l, meno 39,03 l pagati con UTA e meno 6–10 l forniti con l'auto.
-
-(*) **Anomalia del primo tratto.** Con 6–10 l alla consegna e 32,34 l per tornare al pieno su un serbatoio da 40 l, nei primi 1.220 km risultano consumati al massimo 2,3 l. Ai consumi misurati dopo (circa 5 l/100 km) ne servirebbero circa 55–60. Le spiegazioni possibili sono un rifornimento non registrato prima del 30/09, più benzina alla consegna, oppure un primo periodo quasi tutto in elettrico (improbabile con tragitti da 169 km). L'app lo segnala; il calcolo resta prudente, perché attribuisce meno credito. Se emerge un rifornimento mancante, aggiungilo dallo storico: tutti i saldi si ricalcolano.
+**Saldo benzina al 25/10: +36,2 l (intervallo 33,1–39,3 l), affidabilità alta**, pari a circa 72 €. Litri lavorativi maturati circa 81 l, meno 39,03 l pagati con UTA e meno 4,1–8 l forniti con l'auto.
 
 **Cosa significa per i prossimi rifornimenti:**
-- Il prossimo **pieno** va pagato con la carta personale. I circa 18 l consumati tra il 23 e il 25/10 (46% lavoro) sono già nel saldo, e un pieno aziendale li farebbe pagare interamente all'azienda.
-- Dopo qualche giornata di lavoro è invece compatibile un **parziale aziendale** (circa 18 l dopo 300 km di lavoro).
-- Il pieno successivo, a uso simile, tornerà tipicamente compatibile con la carta aziendale.
+- Il prossimo **pieno** (circa 20 l oggi) è **compatibile con la carta aziendale**: il credito copre fino a circa 32 l anche nello scenario prudente.
+- Il credito rimanente dopo quel pieno (circa 15 l) rende probabile che anche il pieno successivo, a uso simile, resti compatibile.
 
 ## 7. Test e limitazioni
 

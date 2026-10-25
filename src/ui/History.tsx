@@ -68,6 +68,7 @@ function Entries() {
               <div className="li-s">
                 {fmt.dateTime(e.ts)}
                 {e.source === 'storico' && <Badge tone="info">storico</Badge>}
+                {e.type === 'fuel' && e.litersEstimated && <Badge tone="info">litri stimati</Badge>}
                 {e.type === 'fuel' && <Badge tone={e.payment === 'company' ? 'warn' : 'neutral'}>{e.payment === 'company' ? 'aziendale' : 'personale'}</Badge>}
                 {e.type === 'charge' && e.estimated && <Badge tone="info">stimata</Badge>}
                 {e.type === 'work' && e.kmMax != null && <Badge tone="info">stimato</Badge>}

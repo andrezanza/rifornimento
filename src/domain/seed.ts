@@ -46,27 +46,29 @@ export function emptyState(): AppState {
 export interface InitialData {
   currentOdo: number;
   currentTs: string;
-  /** livello carburante alla consegna (0..1) con tolleranza; null = non noto */
-  deliveryLevel: number | null;
   /** livello attuale letto sull'indicatore (0..1); null = non letto */
   currentLevel: number | null;
 }
 
-/** Ultima rilevazione comunicata da Andrea il 25/10/2026: 3.073 km, indicatore circa a metà.
- *  Consegna: serbatoio "circa 1/4, un po' meno, non in riserva". */
+/** Ultima rilevazione comunicata da Andrea il 25/10/2026: 3.073 km, indicatore circa a metà. */
 export const ANDREA_DEFAULTS: InitialData = {
   currentOdo: 3073,
   currentTs: '2026-10-25T11:00',
-  deliveryLevel: 0.2,
   currentLevel: 0.5,
 };
 
-/** Intervallo litri alla consegna: "circa 1/4, un po' meno, non in riserva" → 6–10 l su 40 l. */
-export function deliveryRange(level: number | null, cap: number): { min: number; max: number } {
-  if (level == null) return { min: 0, max: cap };
-  if (Math.abs(level - 0.2) < 1e-9) return { min: 6, max: 10 };
-  return { min: Math.max(0, (level - 0.0625) * cap), max: Math.min(cap, (level + 0.0625) * cap) };
-}
+/**
+ * Consegna 18/09/2026 a 40 km (verbale). Benzina alla consegna:
+ * - dal pieno di 35,87 l a 48 km su serbatoio nominale da 40 l → 4,1–4,8 l;
+ * - dal ricordo "circa 1/4, un po' meno, non in riserva" → fino a circa 8 l
+ *   (compatibile se la capacità reale supera di poco i 40 l nominali).
+ * Si usa l'intervallo che copre entrambe le indicazioni; il criterio prudente usa il valore più alto.
+ */
+export const ANDREA_SETTINGS: Partial<Settings> = {
+  deliveryOdo: 40,
+  deliveryFuelMinL: 4.1,
+  deliveryFuelMaxL: 8,
+};
 
 /** Tragitti lavorativi ricostruiti da Andrea (dati certi: data, tipo, km). */
 export const ANDREA_TRIPS: { date: string; km: number; purpose: WorkPurpose; note: string }[] = [
@@ -87,7 +89,10 @@ export const ANDREA_TRIPS: { date: string; km: number; purpose: WorkPurpose; not
 export function historicalEntries(d: InitialData, at: string): Entry[] {
   const base = { source: 'storico' as const, createdAt: at, updatedAt: at };
   const full = 'Storico. Pieno completo (confermato).';
+  const derived = (p: string) => `Storico. Pieno completo. Importo certo; litri ricavati dal prezzo ricordato (${p} €/l), coerente con le medie MIMIT del giorno ma non verificato sull'impianto.`;
   const entries: Entry[] = [
+    { ...base, id: 'storico-fuel-0a', type: 'fuel', ts: '2026-09-18T12:00', odo: 48, litersCl: 3587, amountCents: 7601, priceMilli: null, payment: 'personal', full: true, litersEstimated: true, note: `${derived('2,119')} Eni, Via Altinia 282, Venezia.` },
+    { ...base, id: 'storico-fuel-0b', type: 'fuel', ts: '2026-09-20T12:00', odo: 512, litersCl: 2968, amountCents: 6200, priceMilli: null, payment: 'personal', full: true, litersEstimated: true, note: `${derived('2,089')} Iper Staroil, Via E. Bacchion 3, Venezia.` },
     { ...base, id: 'storico-fuel-1', type: 'fuel', ts: '2026-09-30T12:00', odo: 1220, litersCl: 3234, amountCents: 6400, priceMilli: null, payment: 'personal', full: true, note: full },
     { ...base, id: 'storico-fuel-2', type: 'fuel', ts: '2026-10-11T12:00', odo: 1981, litersCl: 3568, amountCents: 7100, priceMilli: null, payment: 'personal', full: true, note: full },
     { ...base, id: 'storico-fuel-3', type: 'fuel', ts: '2026-10-23T08:00', odo: 2752, litersCl: 3903, amountCents: 7767, priceMilli: null, payment: 'company', full: true, note: full + ' Carta UTA e+.' },
@@ -100,6 +105,7 @@ export function historicalEntries(d: InitialData, at: string): Entry[] {
     },
   ];
   if (d.currentOdo !== 2910 || d.currentTs !== '2026-10-23T22:00') {
+    // rilevazione corrente (onboarding)
     entries.push({
       ...base, id: 'storico-reading-2', type: 'reading', ts: d.currentTs, odo: d.currentOdo,
       fuelLevel: d.currentLevel ?? undefined, note: 'Rilevazione iniziale (onboarding).',

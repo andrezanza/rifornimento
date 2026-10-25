@@ -83,7 +83,7 @@ const [dl] = await Promise.all([page.waitForEvent('download'), page.click('butto
 const path = `${SHOTS}/backup.json`;
 await dl.saveAs(path);
 const backup = JSON.parse(readFileSync(path, 'utf8'));
-ok(backup.app === 'rifornimento' && backup.state.entries.length === 19, `backup con ${backup.state.entries.length} registrazioni`);
+ok(backup.app === 'rifornimento' && backup.state.entries.length === 21, `backup con ${backup.state.entries.length} registrazioni`);
 await page.screenshot({ path: `${SHOTS}/settings.png`, fullPage: true });
 
 // Ripristino su altro dispositivo (contesto pulito)
