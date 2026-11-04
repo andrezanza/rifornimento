@@ -240,7 +240,7 @@ Km percorsi 3.033, di cui 54,8% per lavoro. Il consumo complessivo (circa 5,2 l/
 
 Invarianti aggiuntivi: maturato lavorativo + personale = benzina consumata (nessun doppio conteggio); il carburante iniziale aziendale riduce il saldo; errore se i km lavorativi superano i km percorsi; errore se il contachilometri decresce; tetto al credito; il criterio prudente non consiglia mai più del criterio centrale.
 
-**16 verifiche end-to-end** su build di produzione in Chromium (`e2e/run.mjs`): manifest installabile, service worker, onboarding, registrazione km e rifornimento, validazione, prezzo calcolato, assistente, report mensili, **funzionamento offline dopo ricarica e registrazione offline**, backup scaricato, **ripristino in un browser pulito (altro dispositivo)**, persistenza alla riapertura, eliminazione con ricalcolo e traccia nel registro, nessun errore JavaScript.
+**19 verifiche end-to-end** su build di produzione in Chromium (`e2e/run.mjs`): manifest installabile, service worker, onboarding, registrazione km e rifornimento, validazione, prezzo calcolato, assistente, report mensili, **funzionamento offline dopo ricarica e registrazione offline**, backup scaricato, **ripristino in un browser pulito (altro dispositivo)**, persistenza alla riapertura, eliminazione con ricalcolo e traccia nel registro, promemoria di backup (assente dopo l'importazione, presente dopo un rifornimento, chiuso dopo il salvataggio), nessun errore JavaScript.
 
 ### Non eseguibili in questo ambiente
 
@@ -285,7 +285,7 @@ Prima di andare al distributore apri **Rifornimento**: vedi se il pieno è compa
 
 ### 6. Backup e ripristino
 
-*Impostazioni → Salva backup* crea un file JSON. Su Android puoi condividerlo direttamente su Google Drive o via email. Fallo **almeno una volta al mese e dopo ogni rifornimento aziendale**; la dashboard lo ricorda dopo 30 giorni.
+*Impostazioni → Salva backup* crea un file JSON. Su Android puoi condividerlo direttamente su Google Drive o via email. Fallo **dopo ogni rifornimento e almeno una volta a settimana**. In *Situazione* compare il riquadro *Salva backup* con un pulsante diretto quando ci sono modifiche non salvate e l'ultimo backup ha più di 7 giorni, oppure dopo ogni nuovo rifornimento. I dati vivono solo nel browser del telefono: un aggiornamento di sistema o la pulizia dei dati del browser possono cancellarli (è successo tra il 23/10 e il 03/11/2026), e senza un file salvato fuori dal telefono non sono recuperabili.
 
 Per ripristinare (anche su un altro telefono): installa l'app, tocca *Inizia senza dati storici*, poi *Impostazioni → Ripristina da backup* e scegli il file. Prima di ogni ripristino o cancellazione l'app conserva una copia di sicurezza interna.
 

@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../data/store';
 import { listSnapshots, type Snapshot } from '../data/storage';
 import type { Settings as S } from '../domain/types';
-import { fmt, nowLocalIso, parseDecimal, toScaled } from '../domain/units';
-import { entriesCsv, makeBackup, monthlyCsv, parseBackup } from '../domain/reports';
+import { fmt, parseDecimal, toScaled } from '../domain/units';
+import { entriesCsv, monthlyCsv, parseBackup } from '../domain/reports';
 import { Badge, Card, Field, Icon, NumInput, Segmented, Toggle, toast, Details } from './components';
-import { shareOrDownload, downloadFile, stampName } from './download';
+import { downloadFile, stampName } from './download';
 import { Methodology } from './Methodology';
+import { useBackup } from './useBackup';
 
 const str = (n: number | null | undefined, d = 2) => (n == null ? '' : String(Number(n.toFixed(d))).replace('.', ','));
 
@@ -128,20 +129,12 @@ function Vehicle() {
 }
 
 function Backup() {
-  const { state, restore, markBackup, wipe, persisted } = useStore();
+  const { state, restore, wipe, persisted } = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [snaps, setSnaps] = useState<Snapshot[]>([]);
   useEffect(() => { listSnapshots().then(setSnaps); }, [state]);
 
-  const backup = async () => {
-    const at = nowLocalIso();
-    const json = JSON.stringify(makeBackup(state, at), null, 1);
-    try {
-      const how = await shareOrDownload(stampName('rifornimento-backup', 'json'), json, 'application/json');
-      await markBackup();
-      toast(how === 'shared' ? 'Backup condiviso' : 'Backup scaricato nella cartella Download');
-    } catch { toast('Backup annullato'); }
-  };
+  const { run: backup } = useBackup();
   const onFile = async (f: File | undefined) => {
     if (!f) return;
     try {
@@ -159,7 +152,7 @@ function Backup() {
   const last = state.settings.lastBackupAt;
   return (
     <Card title="Backup e ripristino" actions={last ? <Badge tone="ok">{fmt.date(last)}</Badge> : <Badge tone="warn">mai</Badge>}>
-      <p className="muted small">I dati restano solo su questo dispositivo. Il browser o la pulizia dei dati possono cancellarli: salva un backup dopo ogni rifornimento importante, o almeno una volta al mese, su Google Drive o via email.</p>
+      <p className="muted small">I dati restano solo su questo dispositivo. Il browser o la pulizia dei dati possono cancellarli: salva un backup dopo ogni rifornimento e almeno una volta a settimana: scegli Google Drive (o email) dal menu di condivisione, così il file resta fuori dal telefono. L'app te lo ricorda nella schermata Situazione.</p>
       <button className="btn btn-primary btn-block" onClick={backup}><Icon name="download" /> Salva backup (JSON)</button>
       <button className="btn btn-block" onClick={() => fileRef.current?.click()}><Icon name="upload" /> Ripristina da backup</button>
       <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => onFile(e.target.files?.[0])} data-testid="restore-input" />

@@ -25,6 +25,7 @@ ok(true, 'service worker attivo');
 await page.click('[data-testid=onboard]');
 await page.waitForSelector('text=Saldo benzina lavorativo');
 ok(await page.isVisible('text=Prossimo pieno'), 'dashboard dopo onboarding');
+ok(!(await page.isVisible('[data-testid=backup-now]')), 'nessun promemoria backup per i soli dati importati');
 
 // Registrazione km lavorativi
 await page.click('nav button:has-text("Registra")');
@@ -47,6 +48,7 @@ await page.fill('input[name=fuelAmount]', '60,39');
 ok(await page.isVisible('text=Prezzo unitario: 1,980 €/l'), 'prezzo unitario calcolato');
 await page.click('button:has-text("Salva")');
 await page.waitForSelector('text=Saldo benzina lavorativo');
+ok(await page.isVisible('[data-testid=backup-now]'), 'promemoria backup dopo un rifornimento');
 
 // Assistente
 await page.click('nav button:has-text("Rifornimento")');
@@ -77,13 +79,16 @@ await page.waitForSelector('text=Uso lavorativo');
 ok(await page.isVisible('text=1756 km'), 'registrazione offline salvata');
 await ctx.setOffline(false);
 
-// Backup
-await page.click('nav button:has-text("Impostazioni")');
-const [dl] = await Promise.all([page.waitForEvent('download'), page.click('button:has-text("Salva backup")')]);
+// Backup dal promemoria in Situazione
+await page.click('nav button:has-text("Situazione")');
+const [dl] = await Promise.all([page.waitForEvent('download'), page.click('[data-testid=backup-now]')]);
 const path = `${SHOTS}/backup.json`;
 await dl.saveAs(path);
 const backup = JSON.parse(readFileSync(path, 'utf8'));
 ok(backup.app === 'rifornimento' && backup.state.entries.length === 21, `backup con ${backup.state.entries.length} registrazioni`);
+await page.waitForSelector('[data-testid=backup-now]', { state: 'detached' });
+ok(true, 'promemoria backup chiuso dopo il salvataggio');
+await page.click('nav button:has-text("Impostazioni")');
 await page.screenshot({ path: `${SHOTS}/settings.png`, fullPage: true });
 
 // Ripristino su altro dispositivo (contesto pulito)

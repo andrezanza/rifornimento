@@ -238,3 +238,6 @@ input[type=range] { width: 100%; accent-color: var(--brand); min-height: 32px; }
   .report { padding: 0; }
   .report .tbl { font-size: 10pt; }
 }
+
+.backup-due { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); background: var(--warn-bg); }
+.backup-due p { margin: 0 0 10px; }

@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { useStore } from '../data/store';
 import { planFuel, type Verdict } from '../domain/planner';
-import { fmt, nowLocalIso, daysBetween } from '../domain/units';
+import { fmt, nowLocalIso } from '../domain/units';
 import { fuelPriceMilli } from '../domain/engine';
 import { Badge, Card, Details, Icon, Kv, Meter, RangeL } from './components';
 import type { Tab } from '../App';
+import { useBackup } from './useBackup';
 
 export const VERDICT_UI: Record<Verdict, { tone: string; label: string; icon: string }> = {
   aziendale: { tone: 'ok', label: 'Carta aziendale compatibile', icon: 'check' },
@@ -22,12 +23,21 @@ export function Dashboard({ go }: { go: (t: Tab, sub?: string) => void }) {
   );
   const v = VERDICT_UI[plan.verdict];
   const relTone = r.fuel.reliability === 'alta' ? 'ok' : r.fuel.reliability === 'media' ? 'info' : 'warn';
-  const backupDays = s.lastBackupAt ? daysBetween(s.lastBackupAt, nowLocalIso()) : null;
-  const changesSinceBackup = s.lastBackupAt ? state.audit.filter((a) => a.at > s.lastBackupAt!).length : state.audit.length;
+  const bk = useBackup();
+  const { persisted } = useStore();
   const pf = r.plafond;
 
   return (
     <div className="stack">
+      {bk.due && (
+        <Card className="backup-due" title="Salva un backup">
+          <p className="small">
+            {bk.unsaved} {bk.unsaved === 1 ? 'modifica' : 'modifiche'} {bk.last ? `dall'ultimo backup (${fmt.date(bk.last)})` : 'mai salvate fuori dal telefono'}.
+            {' '}I dati sono solo su questo dispositivo: un aggiornamento o la pulizia del browser possono cancellarli. Scegli Google Drive dal menu di condivisione.
+          </p>
+          <button className="btn btn-primary btn-block" onClick={bk.run} data-testid="backup-now"><Icon name="download" /> Salva backup ora</button>
+        </Card>
+      )}
       <Card className={`hero t-${v.tone}`}>
         <div className="hero-top">
           <span className="hero-ic"><Icon name={v.icon} size={26} /></span>
@@ -100,13 +110,13 @@ export function Dashboard({ go }: { go: (t: Tab, sub?: string) => void }) {
         </Card>
       )}
 
-      {(r.warnings.length > 0 || backupDays == null || backupDays > 30) && (
+      {(r.warnings.length > 0 || persisted === false) && (
         <Card title="Da sapere">
           <ul className="warnlist">
-            {(backupDays == null || backupDays > 30) && changesSinceBackup > 0 && (
+            {persisted === false && (
               <li className="w-attenzione">
-                {backupDays == null ? 'Non hai ancora fatto un backup.' : `Ultimo backup ${Math.floor(backupDays)} giorni fa.`}{' '}
-                <button className="linkbtn" onClick={() => go('settings', 'backup')}>Esegui backup</button>
+                Il browser non garantisce la conservazione dei dati: installa l'app sulla schermata Home e salva backup frequenti.{' '}
+                <button className="linkbtn" onClick={() => go('settings', 'backup')}>Backup</button>
               </li>
             )}
             {r.warnings.map((w, i) => <li key={i} className={`w-${w.level}`}>{w.text}</li>)}
