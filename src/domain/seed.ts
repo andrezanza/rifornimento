@@ -1,6 +1,6 @@
 import type { AppState, Entry, Settings, WorkPurpose } from './types';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export function defaultSettings(): Settings {
   return {
@@ -40,7 +40,7 @@ export function defaultSettings(): Settings {
 }
 
 export function emptyState(): AppState {
-  return { schemaVersion: SCHEMA_VERSION, entries: [], settings: defaultSettings(), audit: [] };
+  return { schemaVersion: SCHEMA_VERSION, entries: [], settings: defaultSettings(), audit: [], settingsUpdatedAt: null };
 }
 
 export interface InitialData {

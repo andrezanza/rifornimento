@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../data/store';
 import { ANDREA_DEFAULTS, ANDREA_SETTINGS, ANDREA_TRIPS } from '../domain/seed';
 import { fmt, parseDecimal } from '../domain/units';
+import { SignIn } from './Cloud';
 import { Card, Details, Field, Icon, NumInput, Segmented, QualityBadge } from './components';
 
 const LEVELS = [
@@ -10,7 +11,7 @@ const LEVELS = [
 ];
 
 export function Onboarding() {
-  const { onboard, startEmpty } = useStore();
+  const { onboard, startEmpty, cloudConfigured, cloud } = useStore();
   const [odo, setOdo] = useState(String(ANDREA_DEFAULTS.currentOdo));
   const [date, setDate] = useState(ANDREA_DEFAULTS.currentTs.slice(0, 10));
   const [now, setNow] = useState(String(ANDREA_DEFAULTS.currentLevel ?? 'unk'));
@@ -34,6 +35,22 @@ export function Onboarding() {
         <h1>Rifornimento</h1>
         <p>Carta carburante aziendale e quota lavorativa della tua CUPRA Formentor e-HYBRID.</p>
       </div>
+
+      {cloudConfigured && (
+        <Card title="Hai già usato l'app?">
+          {cloud.status === 'syncing' ? (
+            <p className="small">Recupero dei dati dal cloud ({cloud.email})…</p>
+          ) : cloud.status === 'synced' || cloud.status === 'pending' ? (
+            <p className="small" data-testid="cloud-empty">Collegato come {cloud.email}: nel cloud non ci sono ancora dati. Importa i dati qui sotto, verranno copiati automaticamente.</p>
+          ) : (
+            <>
+              <p className="small">Accedi con lo stesso account per recuperare i tuoi dati dal cloud.</p>
+              {cloud.status === 'error' && <p className="small w-attenzione">{cloud.error}</p>}
+              <SignIn cta="Recupera i dati con Google" />
+            </>
+          )}
+        </Card>
+      )}
 
       <Card title="Dati già disponibili">
         <p className="small">Questi dati sono già precaricati, non devi reinserirli. Consegna il 18/09 a 40 km. Rifornimenti (tutti pieni completi):</p>

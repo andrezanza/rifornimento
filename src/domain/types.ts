@@ -156,6 +156,8 @@ export interface AppState {
   entries: Entry[];
   settings: Settings;
   audit: AuditRecord[];
+  /** ultima modifica delle impostazioni condivise (per la sincronizzazione); null = mai modificate */
+  settingsUpdatedAt: string | null;
 }
 
 /** intervallo numerico [lo, hi] con valore centrale */
