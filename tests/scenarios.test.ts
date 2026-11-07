@@ -253,6 +253,7 @@ describe('Scenari di validazione', () => {
     close(r.electric.companyKwh, 21.704, 1e-6);
     close(r.electric.balanceKwh.mid, -8.33, 0.05);
     expect(r.plafond.spentCents).toBe(2127);
+    expect(r.plafond.remainingCents).toBe(60000 - 2127);
     const p = planFuel(s, { full: true, liters: null, priceMilli: null, amountCents: null, odo: null, extraWorkKm: null, ts: '2026-11-07T15:50' });
     expect(p.verdict).toBe('aziendale');
     expect(p.fullMaxL).toBeGreaterThan(24);

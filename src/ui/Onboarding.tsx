@@ -59,7 +59,7 @@ export function Onboarding() {
           <li><QualityBadge q="certo" /> date, contachilometri, importi, pagamento, pieni completi, tragitti lavorativi, litri dal 30/09</li>
           <li><QualityBadge q="stimato" /> litri del 18 e 20/09 (da prezzo), benzina alla consegna (4–8 l), indicatore benzina attuale</li>
           <li><QualityBadge q="sconosciuto" /> storico delle ricariche domestiche</li>
-          <li><QualityBadge q="provvisorio" /> plafond 500 €/mese, rinnovo il 1° del mese, comprensivo delle ricariche</li>
+          <li><QualityBadge q="provvisorio" /> plafond 600 €/mese, rinnovo il 1° del mese, comprensivo delle ricariche</li>
         </ul>
         <p className="muted small">I consumi medi del computer di bordo (19,3 km/l, 5,2 kWh/100 km) sono conservati solo come riferimento e non usati come misura: i consumi reali si ricavano dai pieni.</p>
       </Card>

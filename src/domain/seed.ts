@@ -68,6 +68,7 @@ export const ANDREA_SETTINGS: Partial<Settings> = {
   deliveryOdo: 40,
   deliveryFuelMinL: 4.1,
   deliveryFuelMaxL: 8,
+  plafondCents: 60000,
 };
 
 /** Tragitti lavorativi ricostruiti da Andrea (dati certi: data, tipo, km). */
