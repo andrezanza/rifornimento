@@ -113,3 +113,26 @@ export function historicalEntries(d: InitialData, at: string): Entry[] {
   }
   return entries;
 }
+
+/** Movimenti dal 25/10 al 07/11/2026, ricostruiti da Andrea dopo la perdita dei dati sul telefono. */
+export function recoveredEntries(at: string): Entry[] {
+  const base = { source: 'manuale' as const, createdAt: at, updatedAt: at };
+  const rec = 'Ricostruito il 07/11 (dati persi sul telefono).';
+  return [
+    { ...base, id: 'rec-work-1', type: 'work', ts: '2026-10-27T18:00', km: 146, purpose: 'casa-lavoro', note: `Casa-lavoro e ritorno. ${rec}` },
+    { ...base, id: 'rec-work-2', type: 'work', ts: '2026-10-28T17:00', km: 143, purpose: 'casa-lavoro', odo: 3369, note: `Casa-lavoro-distributore (prima del rifornimento). ${rec}` },
+    { ...base, id: 'rec-fuel-1', type: 'fuel', ts: '2026-10-28T17:15', odo: 3369, litersCl: 3800, amountCents: 7558, priceMilli: 1989, payment: 'company', full: true, note: `Pieno fino allo scatto. Carta UTA e+. Tatanka, Via E. Bacchion 6, Venezia. ${rec}` },
+    { ...base, id: 'rec-work-3', type: 'work', ts: '2026-10-28T17:30', km: 6, purpose: 'casa-lavoro', note: `Distributore-casa (ritorno del casa-lavoro). ${rec}` },
+    { ...base, id: 'rec-work-4', type: 'work', ts: '2026-11-03T18:00', km: 92, purpose: 'trasferta', note: `Trasferta casa-cliente e ritorno. ${rec}` },
+    { ...base, id: 'rec-work-5', type: 'work', ts: '2026-11-04T18:00', km: 148, purpose: 'casa-lavoro', note: `Casa-lavoro e ritorno. ${rec}` },
+    {
+      ...base, id: 'rec-charge-1', type: 'charge', ts: '2026-11-05T15:41', kind: 'public', payment: 'company', energyWh: 21704, amountCents: 2127, estimated: false,
+      note: `Ricarica rapida CCS (DC) 0→100%, 49 min 45 s, media 26,22 kW. Magic Smart, Via Vecchia Ferriera 13, Vicenza. Carta UTA e+. Importo stimato: 21,704 kWh × 0,980 €/kWh, da verificare sul movimento Edenred UTA. ${rec}`,
+    },
+    { ...base, id: 'rec-work-6', type: 'work', ts: '2026-11-05T18:00', km: 173, purpose: 'casa-lavoro', note: `Casa-lavoro e ritorno. ${rec}` },
+    {
+      ...base, id: 'rec-reading-1', type: 'reading', ts: '2026-11-07T15:40', odo: 3886, fuelLevel: 0.4375, tripAvgL100: 5.21, tripAvgKwh100: 7.3,
+      note: 'Indicatore poco meno di metà, batteria al 58%. Computer di bordo dal 28/10 (517 km): 19,2 km/l, 7,3 kWh/100 km. Totale: 18,8 km/l, 5,2 kWh/100 km.',
+    },
+  ];
+}

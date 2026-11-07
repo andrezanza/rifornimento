@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { compute } from '../src/domain/engine';
 import { planCharge, planFuel } from '../src/domain/planner';
-import { emptyState, historicalEntries, ANDREA_DEFAULTS, ANDREA_SETTINGS } from '../src/domain/seed';
+import { emptyState, historicalEntries, ANDREA_DEFAULTS, ANDREA_SETTINGS, recoveredEntries } from '../src/domain/seed';
 import { entriesCsv, makeBackup, monthlyCsv, monthlyReport, parseBackup } from '../src/domain/reports';
 import { toScaled, unitPriceMilli, parseDecimal } from '../src/domain/units';
 import type { AppState, Entry, Settings } from '../src/domain/types';
@@ -229,6 +229,33 @@ describe('Scenari di validazione', () => {
     expect(p.verdict).toBe('aziendale');
     expect(p.mode).toBe('pieno');
     expect(p.fullMaxL).toBeGreaterThan(25);
+  });
+
+  it('13c. movimenti ricostruiti dal 25/10 al 07/11: pieno UTA, ricarica rapida, lettura con computer di bordo', () => {
+    const s = emptyState();
+    s.entries = [...historicalEntries(ANDREA_DEFAULTS, T), ...recoveredEntries(T)];
+    s.settings = { ...s.settings, ...ANDREA_SETTINGS };
+    const r = compute(s, { now: '2026-11-07T15:45' });
+    expect(r.warnings).toEqual([]);
+    expect(r.totals.km).toBe(3846);
+    expect(r.totals.workKm.mid).toBe(2370);
+    expect(r.totals.fuelCompanyCents).toBe(7767 + 7558);
+    // 23/10 → 28/10: 38,00 l su 617 km, spezzato dalla lettura del 25/10
+    const s28 = r.segments.filter((x) => x.startOdo >= 2752 && x.endOdo != null && x.endOdo <= 3369);
+    close(s28.reduce((a, x) => a + x.consumedL.mid, 0), 38, 0.01);
+    // dopo il 28/10: computer di bordo (5,21 l/100 km) e indicatore (poco meno di metà) concordano su circa 15–16 l
+    expect(r.rate.source).toBe('computer di bordo');
+    expect(r.stockNow.lo).toBeGreaterThanOrEqual(15 - 1e-9);
+    expect(r.stockNow.hi).toBeLessThan(16);
+    close(r.fuel.balanceL.mid, 35.4, 0.3);
+    expect(r.fuel.balanceL.lo).toBeGreaterThan(29);
+    // ricarica pagata con UTA: il 61,6% è lavorativo, il resto va a debito nel saldo elettrico
+    close(r.electric.companyKwh, 21.704, 1e-6);
+    close(r.electric.balanceKwh.mid, -8.33, 0.05);
+    expect(r.plafond.spentCents).toBe(2127);
+    const p = planFuel(s, { full: true, liters: null, priceMilli: null, amountCents: null, odo: null, extraWorkKm: null, ts: '2026-11-07T15:50' });
+    expect(p.verdict).toBe('aziendale');
+    expect(p.fullMaxL).toBeGreaterThan(24);
   });
 
   it('14. consumi medi stimati vs effettivi: dopo due pieni si usa il consumo misurato', () => {

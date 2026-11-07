@@ -32,7 +32,7 @@ export function Dashboard({ go }: { go: (t: Tab, sub?: string) => void }) {
       {bk.due && (
         <Card className="backup-due" title="Salva un backup">
           <p className="small">
-            {bk.unsaved} {bk.unsaved === 1 ? 'modifica' : 'modifiche'} {bk.last ? `dall'ultimo backup (${fmt.date(bk.last)})` : 'mai salvate fuori dal telefono'}.
+            {bk.unsaved} {bk.unsaved === 1 ? 'modifica' : 'modifiche'} {bk.last ? `dall'ultimo backup (${fmt.date(bk.last)})` : bk.unsaved === 1 ? 'mai salvata fuori dal telefono' : 'mai salvate fuori dal telefono'}.
             {' '}I dati sono solo su questo dispositivo: un aggiornamento o la pulizia del browser possono cancellarli. Scegli Google Drive dal menu di condivisione.
           </p>
           <button className="btn btn-primary btn-block" onClick={bk.run} data-testid="backup-now"><Icon name="download" /> Salva backup ora</button>
