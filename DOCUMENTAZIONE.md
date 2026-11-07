@@ -293,6 +293,28 @@ Per ripristinare (anche su un altro telefono): installa l'app, tocca *Inizia sen
 
 Ripubblica allo **stesso indirizzo** (con GitHub Pages basta un push su `main`: il workflow pubblica solo se i test passano). All'apertura successiva compare "Nuova versione disponibile → Aggiorna". I dati restano nel telefono e le impostazioni nuove vengono aggiunte automaticamente. Per prudenza fai un backup prima di aggiornare.
 
+### 8. Sicurezza dei dati e sincronizzazione cloud (dal 07/11/2026)
+
+Dopo la perdita dei dati di fine ottobre l'app è stata irrobustita:
+
+- **Doppia copia locale.** Ogni salvataggio va in IndexedDB e in localStorage; all'avvio si usa la copia più recente. Se il salvataggio fallisce del tutto compare un avviso.
+- **Migrazioni numerate.** Ogni formato dei dati ha un numero di versione (`schemaVersion`, ora 2). Gli aggiornamenti convertono i dati passo per passo (`src/domain/migrate.ts`), anche quelli dei backup, senza eliminare campi sconosciuti. Se i dati sono di una versione più recente dell'app, l'app non li tocca e chiede di aggiornarsi.
+- **Ripristino controllato.** Prima di sostituire i dati l'app mostra quante registrazioni contiene il backup, la data dell'ultima e quante ce ne sono adesso.
+- **Protezione dagli errori.** Se una schermata va in errore compare un pulsante per scaricare subito un backup di emergenza.
+- **Sincronizzazione Firebase (piano gratuito Spark).** Accesso con Google o con email e password. Ogni modifica viene copiata in Firestore (`users/{uid}/data`: un documento per mese con registrazioni e rettifiche, più uno per le impostazioni). Offline le modifiche restano in coda e partono al ritorno della rete. Su più dispositivi vince la modifica più recente; le eliminazioni si propagano. Alla prima sincronizzazione di un dispositivo vincono i dati del cloud, così un telefono appena installato non sovrascrive lo storico. *Cancella tutti i dati* disconnette il dispositivo e lascia intatto il cloud. Le regole in `firestore.rules` permettono a ogni utente di leggere e scrivere solo i propri dati.
+- Il backup su file resta disponibile come copia in più; con il cloud attivo il promemoria in *Situazione* non compare.
+
+**Configurazione del progetto Firebase (una volta, gratis, nessuna carta richiesta):**
+1. [console.firebase.google.com](https://console.firebase.google.com) → *Crea un progetto* (Google Analytics non serve).
+2. *Authentication → Inizia → Metodo di accesso*: attiva **Google** e **Email/password**.
+3. *Authentication → Impostazioni → Domini autorizzati*: aggiungi `andrezanza.github.io`.
+4. *Firestore Database → Crea database*, località europea, modalità produzione. Nella scheda *Regole* incolla il contenuto di `firestore.rules` e pubblica.
+5. *Impostazioni progetto → Le tue app → Web (</>)*: registra l'app (senza Hosting) e copia l'oggetto `firebaseConfig` in `src/data/firebase-config.ts`. Questi valori identificano il progetto e non sono segreti: l'accesso ai dati è protetto dall'account e dalle regole.
+
+Quota gratuita: 50.000 letture e 20.000 scritture al giorno. L'app ne usa qualche decina.
+
+**Test della sincronizzazione** (emulatori locali, nessun servizio reale): `npx firebase-tools emulators:start --only auth,firestore --project demo-rifornimento`, poi `VITE_FIREBASE_EMULATOR=http://127.0.0.1 npx vite build --outDir dist-emu && npx vite preview --port 4174 --outDir dist-emu` e `npm run e2e:cloud`. Verifica accesso, recupero su un telefono vuoto, allineamento tra dispositivi, eliminazioni, modifiche offline e cancellazione locale senza effetti sul cloud.
+
 ---
 
 ## 9. Miglioramenti futuri (non essenziali)

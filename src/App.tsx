@@ -31,7 +31,7 @@ function readHash(): Tab {
 }
 
 export function App() {
-  const { ready, state } = useStore();
+  const { ready, state, fatal } = useStore();
   const [tab, setTab] = useState<Tab>(readHash);
   const [kind, setKind] = useState<EntryKind>('work');
   const [hview, setHview] = useState<HistoryView>('entries');
@@ -56,6 +56,19 @@ export function App() {
     setTab(t);
   };
 
+  if (fatal) {
+    return (
+      <main className="main">
+        <div className="card fatal" role="alert">
+          <h2>Dati non aperti</h2>
+          <p className="small">{fatal}</p>
+          <p className="muted small">Per proteggerli, l'app non li modifica. Se compare l'avviso di aggiornamento, accettalo; altrimenti chiudi e riapri l'app.</p>
+          {needRefresh && <button className="btn btn-primary btn-block" onClick={() => updateServiceWorker(true)}>Aggiorna l'app</button>}
+          <button className="btn btn-block" onClick={() => location.reload()}>Ricarica</button>
+        </div>
+      </main>
+    );
+  }
   if (!ready) return <div className="splash">Caricamento…</div>;
   if (!state.settings.onboarded) return <main className="main"><Onboarding /><ToastHost /></main>;
   if (report) return <main className="main wide"><Report onClose={() => setReport(false)} /></main>;
@@ -68,7 +81,7 @@ export function App() {
       </header>
       {needRefresh && (
         <div className="update">
-          Nuova versione disponibile. I dati restano sul dispositivo.
+          Nuova versione disponibile. I tuoi dati restano al sicuro.
           <button className="btn btn-sm btn-primary" onClick={() => updateServiceWorker(true)}>Aggiorna</button>
         </div>
       )}

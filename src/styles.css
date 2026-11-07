@@ -241,3 +241,8 @@ input[type=range] { width: 100%; accent-color: var(--brand); min-height: 32px; }
 
 .backup-due { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); background: var(--warn-bg); }
 .backup-due p { margin: 0 0 10px; }
+
+/* errori bloccanti e messaggi del cloud */
+.fatal { margin-top: 24px; display: grid; gap: 10px; }
+.fatal h2 { font-size: 1.1rem; }
+p.w-attenzione { color: var(--warn); font-weight: 600; }

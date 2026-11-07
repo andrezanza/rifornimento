@@ -6,6 +6,7 @@ import { fuelPriceMilli } from '../domain/engine';
 import { Badge, Card, Details, Icon, Kv, Meter, RangeL } from './components';
 import type { Tab } from '../App';
 import { useBackup } from './useBackup';
+import { SignIn } from './Cloud';
 
 export const VERDICT_UI: Record<Verdict, { tone: string; label: string; icon: string }> = {
   aziendale: { tone: 'ok', label: 'Carta aziendale compatibile', icon: 'check' },
@@ -24,12 +25,19 @@ export function Dashboard({ go }: { go: (t: Tab, sub?: string) => void }) {
   const v = VERDICT_UI[plan.verdict];
   const relTone = r.fuel.reliability === 'alta' ? 'ok' : r.fuel.reliability === 'media' ? 'info' : 'warn';
   const bk = useBackup();
-  const { persisted } = useStore();
+  const { persisted, cloud, cloudConfigured } = useStore();
+  const cloudOn = cloud.status === 'synced' || cloud.status === 'pending' || cloud.status === 'syncing';
   const pf = r.plafond;
 
   return (
     <div className="stack">
-      {bk.due && (
+      {cloudConfigured && cloud.status === 'signed-out' && (
+        <Card className="backup-due" title="Attiva la copia nel cloud">
+          <p className="small">I dati sono solo su questo telefono. Accedi una volta e da lì ogni modifica viene copiata automaticamente, gratis.</p>
+          <SignIn />
+        </Card>
+      )}
+      {bk.due && !cloudOn && (
         <Card className="backup-due" title="Salva un backup">
           <p className="small">
             {bk.unsaved} {bk.unsaved === 1 ? 'modifica' : 'modifiche'} {bk.last ? `dall'ultimo backup (${fmt.date(bk.last)})` : bk.unsaved === 1 ? 'mai salvata fuori dal telefono' : 'mai salvate fuori dal telefono'}.
@@ -110,10 +118,10 @@ export function Dashboard({ go }: { go: (t: Tab, sub?: string) => void }) {
         </Card>
       )}
 
-      {(r.warnings.length > 0 || persisted === false) && (
+      {(r.warnings.length > 0 || (persisted === false && !cloudOn)) && (
         <Card title="Da sapere">
           <ul className="warnlist">
-            {persisted === false && (
+            {persisted === false && !cloudOn && (
               <li className="w-attenzione">
                 Il browser non garantisce la conservazione dei dati: installa l'app sulla schermata Home e salva backup frequenti.{' '}
                 <button className="linkbtn" onClick={() => go('settings', 'backup')}>Backup</button>

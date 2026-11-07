@@ -8,6 +8,7 @@ import { Badge, Card, Field, Icon, NumInput, Segmented, Toggle, toast, Details }
 import { downloadFile, stampName } from './download';
 import { Methodology } from './Methodology';
 import { useBackup } from './useBackup';
+import { CloudCard } from './Cloud';
 
 const str = (n: number | null | undefined, d = 2) => (n == null ? '' : String(Number(n.toFixed(d))).replace('.', ','));
 
@@ -16,7 +17,7 @@ export function Settings({ section }: { section?: string }) {
   useEffect(() => { if (section === 'backup') backupRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [section]);
   return (
     <div className="stack">
-      <div ref={backupRef}><Backup /></div>
+      <div ref={backupRef} className="stack"><CloudCard /><Backup /></div>
       <Policy />
       <Plafond />
       <Vehicle />
@@ -129,7 +130,8 @@ function Vehicle() {
 }
 
 function Backup() {
-  const { state, restore, wipe, persisted } = useStore();
+  const { state, restore, wipe, persisted, cloud } = useStore();
+  const cloudOn = cloud.status === 'synced' || cloud.status === 'pending';
   const fileRef = useRef<HTMLInputElement>(null);
   const [snaps, setSnaps] = useState<Snapshot[]>([]);
   useEffect(() => { listSnapshots().then(setSnaps); }, [state]);
@@ -140,7 +142,9 @@ function Backup() {
     try {
       const b = parseBackup(await f.text());
       const n = b.state.entries.length;
-      if (!confirm(`Ripristinare il backup del ${fmt.dateTime(b.exportedAt)} con ${n} registrazioni?\n\nI dati attuali verranno sostituiti (resta una copia di sicurezza interna).`)) return;
+      const lastTs = b.state.entries.reduce((m, e) => (e.ts > m ? e.ts : m), '');
+      const cur = state.entries.length;
+      if (!confirm(`Ripristinare il backup del ${fmt.dateTime(b.exportedAt)}?\n\n• ${n} registrazioni${lastTs ? `, l'ultima del ${fmt.date(lastTs)}` : ''}\n• adesso nell'app: ${cur} registrazioni\n\nI dati attuali verranno sostituiti (resta una copia di sicurezza interna)${cloudOn ? ' e il ripristino verrà copiato anche nel cloud' : ''}.`)) return;
       await restore(b.state);
       toast(`Ripristinate ${n} registrazioni`);
     } catch (e) {
@@ -152,7 +156,7 @@ function Backup() {
   const last = state.settings.lastBackupAt;
   return (
     <Card title="Backup e ripristino" actions={last ? <Badge tone="ok">{fmt.date(last)}</Badge> : <Badge tone="warn">mai</Badge>}>
-      <p className="muted small">I dati restano solo su questo dispositivo. Il browser o la pulizia dei dati possono cancellarli: salva un backup dopo ogni rifornimento e almeno una volta a settimana: scegli Google Drive (o email) dal menu di condivisione, così il file resta fuori dal telefono. L'app te lo ricorda nella schermata Situazione.</p>
+      <p className="muted small">I dati sono salvati su questo dispositivo{cloudOn ? ' e copiati nel cloud' : ''}. Il browser o la pulizia dei dati possono cancellarli: {cloudOn ? 'il backup su file resta utile come copia in più, da tenere su Google Drive.' : 'salva un backup dopo ogni rifornimento e almeno una volta a settimana: scegli Google Drive (o email) dal menu di condivisione, così il file resta fuori dal telefono. L\'app te lo ricorda nella schermata Situazione.'}</p>
       <button className="btn btn-primary btn-block" onClick={backup}><Icon name="download" /> Salva backup (JSON)</button>
       <button className="btn btn-block" onClick={() => fileRef.current?.click()}><Icon name="upload" /> Ripristina da backup</button>
       <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => onFile(e.target.files?.[0])} data-testid="restore-input" />
@@ -173,7 +177,7 @@ function Backup() {
         </Details>
       )}
       <Details summary="Zona pericolosa">
-        <button className="btn btn-danger btn-block" onClick={async () => { if (confirm('Cancellare TUTTI i dati da questo dispositivo? Fai prima un backup.') && confirm('Confermi la cancellazione definitiva?')) { await wipe(); toast('Dati cancellati'); } }}>
+        <button className="btn btn-danger btn-block" onClick={async () => { if (confirm(cloudOn ? 'Cancellare TUTTI i dati da questo dispositivo? Il dispositivo verrà disconnesso dal cloud, dove i dati restano.' : 'Cancellare TUTTI i dati da questo dispositivo? Fai prima un backup.') && confirm('Confermi la cancellazione definitiva?')) { await wipe(); toast('Dati cancellati'); } }}>
           <Icon name="trash" /> Cancella tutti i dati
         </button>
       </Details>
@@ -184,7 +188,7 @@ function Backup() {
 function About() {
   return (
     <Card title="Informazioni">
-      <p className="small">Rifornimento v{__APP_VERSION__}. App personale local-first: nessun account, nessun server, nessun tracciamento. Funziona offline dopo la prima apertura. Gli aggiornamenti dell'app non toccano i dati salvati sul dispositivo.</p>
+      <p className="small">Rifornimento v{__APP_VERSION__}. App personale local-first: i dati stanno sul dispositivo e, se attivi la sincronizzazione, anche nel tuo spazio Firebase, leggibile solo con il tuo account. Nessun tracciamento. Funziona offline dopo la prima apertura. Gli aggiornamenti dell'app non toccano i dati e li convertono al nuovo formato quando serve.</p>
     </Card>
   );
 }

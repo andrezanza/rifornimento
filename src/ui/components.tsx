@@ -179,6 +179,7 @@ const ICONS: Record<string, string> = {
   file: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6',
   back: 'M15 18l-6-6 6-6',
   euro: 'M18 7a7 7 0 1 0 0 10M4 10h10M4 14h10',
+  cloud: 'M7 19a5 5 0 0 1-.9-9.9A6 6 0 0 1 17.7 8 4.5 4.5 0 0 1 17.5 19z',
 };
 
 export function Icon({ name, size = 22 }: { name: keyof typeof ICONS | string; size?: number }) {

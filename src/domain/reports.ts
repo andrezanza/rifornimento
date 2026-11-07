@@ -1,3 +1,4 @@
+import { migrate } from './migrate';
 import type { AppState, ChargeEntry, Entry, FuelEntry, WorkEntry } from './types';
 import { sortEntries, fuelAmountCents, fuelPriceMilli, chargePriceMilli, plafondPeriod } from './engine';
 import { SCHEMA_VERSION } from './seed';
@@ -227,5 +228,6 @@ export function parseBackup(text: string): BackupFile {
       throw new Error('Backup danneggiato: ricarica non valida.');
     }
   }
-  return { ...b, state: { ...st, schemaVersion: SCHEMA_VERSION, audit: Array.isArray(st.audit) ? st.audit : [] } } as BackupFile;
+  // lo stato del backup porta la versione del file: le migrazioni lo aggiornano passo per passo
+  return { ...b, state: migrate({ ...st, schemaVersion: st.schemaVersion ?? b.schemaVersion }) } as BackupFile;
 }
